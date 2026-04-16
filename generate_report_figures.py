@@ -179,12 +179,11 @@ def fig_validation_summary():
         "Chetty LBM-GLS": 6.1e-9,
     }
 
-    fig, ax = plt.subplots(figsize=(10, 6))
+    _, ax = plt.subplots(figsize=(10, 6))
     names = list(data.keys())
     diffs = list(data.values())
-
     colors = ["green" if d < 1e-4 else "orange" for d in diffs]
-    bars = ax.barh(names, diffs, color=colors, alpha=0.7, edgecolor="black")
+    ax.barh(names, diffs, color=colors, alpha=0.7, edgecolor="black")
     ax.set_xscale("log")
     ax.set_xlabel("Max absolute difference (Python vs Stata)")
     ax.set_title("SPUR Python validation: max differences vs Stata reference")

@@ -133,6 +133,34 @@ All functions validated against the Stata SPUR package:
 
 The Muller-Watson (2024) Chetty mobility replication reproduces all published values exactly.
 
+## Validation against Chetty (MW 2024)
+
+Muller and Watson (2024) motivate spatial differencing with Raj Chetty's Commuting-Zone intergenerational-mobility data. The level regression of absolute mobility (AM) on teenage labor-force-participation rate (TLFPR) produces a strong apparent relationship that collapses after LBM-GLS differencing — a warning that spatial patterns may reflect spatial unit roots rather than a real relationship.
+
+**Sample:** 741 commuting zones → drop AK/HI → 722 → drop missing AM/TLFPR → **693 observations**.
+
+Running `spurtransform` on Chetty's data reproduces every reported Muller-Watson number:
+
+| Quantity                          | Muller-Watson | spur-python |
+|-----------------------------------|:-------------:|:-----------:|
+| LBM-GLS AM_d, max diff vs Stata   | —             | 6.1 × 10⁻⁹  |
+| LBM-GLS TLFPR_d, max diff vs Stata| —             | 6.1 × 10⁻⁹  |
+| β: std(AM) ~ std(TLFPR)           | 0.6601        | **0.6601**  |
+| R²: std(AM) ~ std(TLFPR)          | 0.4358        | **0.4358**  |
+| t-stat (robust SE)                | 23.10         | **23.10**   |
+| β: AM_d ~ TLFPR_d                 | 0.2599        | **0.2599**  |
+| R² after LBM-GLS                  | 0.0447        | **0.0447**  |
+| Cluster-robust SE (49 states)     | 0.0971        | **0.0971**  |
+| t-stat after LBM-GLS              | 2.68          | **2.68**    |
+
+Every reported digit matches MW's published values.
+
+### The collapse of spatial dependence
+
+![Chetty regressions: before and after LBM-GLS](./figures/chetty_regressions.png)
+
+AM-TLFPR scatter and OLS line, before (left) and after (right) LBM-GLS differencing. The R² drops from **0.44 to 0.04** once the common spatial trend is removed — exactly as Muller and Watson (2024) document.
+
 ## Performance
 
 Python vs Stata wall-clock benchmarks on identical synthetic data, varying N (observations) and `nrep` (Monte Carlo draws).

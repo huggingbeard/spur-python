@@ -17,22 +17,26 @@ from scipy.special import gamma as gamma_func
 
 from spur import get_distance_matrix
 from .spurtest import (
-    get_distmat_normalized, get_R, get_sigma_dm, getcbar, _cholesky_upper
+    get_R,
+    get_sigma_dm,
+    getcbar,
+    _cholesky_upper,
 )
 
 
 @dataclass
 class HalfLifeResult:
     """Container for spurhalflife results."""
+
     ci_lower: float  # Lower bound of CI
     ci_upper: float  # Upper bound (inf if unbounded)
     max_dist: float  # Max pairwise distance in sample (for unit conversion)
-    level: float     # Confidence level (e.g., 0.95)
-    normdist: bool   # If True, CI is in fractions of max_dist; else meters
+    level: float  # Confidence level (e.g., 0.95)
+    normdist: bool  # If True, CI is in fractions of max_dist; else meters
 
     def summary(self) -> str:
         """Format results for display."""
-        units = ("fractions of max distance" if self.normdist else "meters")
+        units = "fractions of max distance" if self.normdist else "meters"
         level_pct = int(self.level * 100)
         upper_str = "inf" if np.isinf(self.ci_upper) else f"{self.ci_upper:.4f}"
         lines = [
@@ -46,8 +50,13 @@ class HalfLifeResult:
         return "\n".join(lines)
 
 
-def _c_ci(Y: np.ndarray, distmat: np.ndarray, emat: np.ndarray,
-          c_grid_ho: np.ndarray, c_grid_ha: np.ndarray) -> np.ndarray:
+def _c_ci(
+    Y: np.ndarray,
+    distmat: np.ndarray,
+    emat: np.ndarray,
+    c_grid_ho: np.ndarray,
+    c_grid_ha: np.ndarray,
+) -> np.ndarray:
     """
     Compute p-values over c_grid_ho using LR test with averaged Ha likelihood.
 
@@ -103,7 +112,7 @@ def _c_ci(Y: np.ndarray, distmat: np.ndarray, emat: np.ndarray,
     for i in range(n_c_ho):
         # Draws under null i
         ch_null = ch_om_list[i]  # upper triangular
-        e = ch_null.T @ emat     # shape (q, nrep)
+        e = ch_null.T @ emat  # shape (q, nrep)
 
         # Null density for draws
         ch_omi = ch_omi_list[i]
@@ -140,8 +149,9 @@ def _c_ci(Y: np.ndarray, distmat: np.ndarray, emat: np.ndarray,
     return pv_mat
 
 
-def spatial_persistence(Y: np.ndarray, distmat: np.ndarray,
-                        emat: np.ndarray, level: float) -> tuple:
+def spatial_persistence(
+    Y: np.ndarray, distmat: np.ndarray, emat: np.ndarray, level: float
+) -> tuple:
     """
     Compute confidence interval for half-life parameter.
 
@@ -163,11 +173,9 @@ def spatial_persistence(Y: np.ndarray, distmat: np.ndarray,
     """
     # Grid of half-lives under H0 (dense near 0, sparse at tail)
     n_hl = 100
-    hl_grid_ho = np.concatenate([
-        np.linspace(0.001, 1, n_hl),
-        np.linspace(1.01, 3, 30),
-        [100.0]
-    ])
+    hl_grid_ho = np.concatenate(
+        [np.linspace(0.001, 1, n_hl), np.linspace(1.01, 3, 30), [100.0]]
+    )
 
     # Grid of half-lives under Ha
     n_hl_ha = 50
@@ -190,10 +198,17 @@ def spatial_persistence(Y: np.ndarray, distmat: np.ndarray,
     return float(hl_ci.min()), float(hl_ci.max())
 
 
-def spurhalflife(df: pd.DataFrame, varname: str, coord_cols: List[str],
-                 q: int = 15, nrep: int = 100000, level: float = 0.95,
-                 latlon: bool = True, normdist: bool = False,
-                 seed: Optional[int] = None) -> HalfLifeResult:
+def spurhalflife(
+    df: pd.DataFrame,
+    varname: str,
+    coord_cols: List[str],
+    q: int = 15,
+    nrep: int = 100000,
+    level: float = 0.95,
+    latlon: bool = True,
+    normdist: bool = False,
+    seed: Optional[int] = None,
+) -> HalfLifeResult:
     """
     Compute confidence interval for spatial half-life.
 
@@ -269,15 +284,11 @@ def spurhalflife(df: pd.DataFrame, varname: str, coord_cols: List[str],
         ci_u = ci_u * max_dist if not np.isinf(ci_u) else ci_u
 
     return HalfLifeResult(
-        ci_lower=ci_l,
-        ci_upper=ci_u,
-        max_dist=max_dist,
-        level=level,
-        normdist=normdist
+        ci_lower=ci_l, ci_upper=ci_u, max_dist=max_dist, level=level, normdist=normdist
     )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Quick self-test
     np.random.seed(42)
     n = 30
@@ -285,9 +296,8 @@ if __name__ == '__main__':
     lon = np.random.uniform(5, 15, n)
     y = np.cumsum(np.random.randn(n)) + 0.5 * lat
 
-    df = pd.DataFrame({'lat': lat, 'lon': lon, 'y': y})
+    df = pd.DataFrame({"lat": lat, "lon": lon, "y": y})
 
     print("Spatial half-life test (n=30, nrep=5000)...")
-    result = spurhalflife(df, 'y', ['lat', 'lon'],
-                          q=10, nrep=5000, seed=42)
+    result = spurhalflife(df, "y", ["lat", "lon"], q=10, nrep=5000, seed=42)
     print(result.summary())

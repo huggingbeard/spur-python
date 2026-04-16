@@ -33,13 +33,9 @@ def create_test_data(n: int = 50, seed: int = 42) -> pd.DataFrame:
     y = lat * 0.1 + np.random.randn(n) * 0.5
     x = lon * 0.05 + np.random.randn(n) * 0.3
 
-    df = pd.DataFrame({
-        'id': np.arange(1, n + 1),
-        'lat': lat,
-        'lon': lon,
-        'y': y,
-        'x': x
-    })
+    df = pd.DataFrame(
+        {"id": np.arange(1, n + 1), "lat": lat, "lon": lon, "y": y, "x": x}
+    )
 
     return df
 
@@ -79,21 +75,36 @@ di "Stata validation complete!"
 def run_python_transforms(df: pd.DataFrame, radius: float = 200000) -> pd.DataFrame:
     """Run Python transforms."""
     # NN
-    df = spurtransform(df, ['y', 'x'], ['lat', 'lon'],
-                       method='nn', latlon=True, prefix='py_nn_')
+    df = spurtransform(
+        df, ["y", "x"], ["lat", "lon"], method="nn", latlon=True, prefix="py_nn_"
+    )
 
     # ISO
-    df = spurtransform(df, ['y', 'x'], ['lat', 'lon'],
-                       method='iso', radius=radius, latlon=True, prefix='py_iso_')
+    df = spurtransform(
+        df,
+        ["y", "x"],
+        ["lat", "lon"],
+        method="iso",
+        radius=radius,
+        latlon=True,
+        prefix="py_iso_",
+    )
 
     # LBM-GLS
-    df = spurtransform(df, ['y', 'x'], ['lat', 'lon'],
-                       method='lbmgls', latlon=True, prefix='py_lbm_')
+    df = spurtransform(
+        df, ["y", "x"], ["lat", "lon"], method="lbmgls", latlon=True, prefix="py_lbm_"
+    )
 
     # Cluster (create same cluster variable as Stata: latitude tercile)
-    df['cluster'] = pd.qcut(df['lat'], q=3, labels=[1, 2, 3]).astype(int)
-    df = spurtransform(df, ['y', 'x'], ['lat', 'lon'],
-                       method='cluster', cluster_col='cluster', prefix='py_cl_')
+    df["cluster"] = pd.qcut(df["lat"], q=3, labels=[1, 2, 3]).astype(int)
+    df = spurtransform(
+        df,
+        ["y", "x"],
+        ["lat", "lon"],
+        method="cluster",
+        cluster_col="cluster",
+        prefix="py_cl_",
+    )
 
     return df
 
@@ -103,7 +114,7 @@ def compare_results():
     if not STATA_OUTPUT.exists():
         print(f"ERROR: Stata output not found at {STATA_OUTPUT}")
         print("Please run the do-file in Stata first:")
-        print(f"  do \"{DO_FILE}\"")
+        print(f'  do "{DO_FILE}"')
         return
 
     # Load Stata output
@@ -119,9 +130,9 @@ def compare_results():
 
     # Compare NN transforms
     print("\nNearest-Neighbor (NN) Transform:")
-    for var in ['y', 'x']:
-        py_col = f'py_nn_{var}'
-        stata_col = f'nn_{var}'
+    for var in ["y", "x"]:
+        py_col = f"py_nn_{var}"
+        stata_col = f"nn_{var}"
 
         if stata_col not in stata_df.columns:
             print(f"  WARNING: {stata_col} not in Stata output")
@@ -141,17 +152,17 @@ def compare_results():
         print(f"    Correlation: {corr:.10f}")
 
         if max_diff < 1e-6:
-            print(f"    Status: MATCH (< 1e-6)")
+            print("    Status: MATCH (< 1e-6)")
         elif max_diff < 1e-3:
-            print(f"    Status: CLOSE (< 1e-3)")
+            print("    Status: CLOSE (< 1e-3)")
         else:
-            print(f"    Status: DIFFERS")
+            print("    Status: DIFFERS")
 
     # Compare ISO transforms
     print("\nIsotropic (ISO) Transform:")
-    for var in ['y', 'x']:
-        py_col = f'py_iso_{var}'
-        stata_col = f'iso_{var}'
+    for var in ["y", "x"]:
+        py_col = f"py_iso_{var}"
+        stata_col = f"iso_{var}"
 
         if stata_col not in stata_df.columns:
             print(f"  WARNING: {stata_col} not in Stata output")
@@ -171,17 +182,17 @@ def compare_results():
         print(f"    Correlation: {corr:.10f}")
 
         if max_diff < 1e-6:
-            print(f"    Status: MATCH (< 1e-6)")
+            print("    Status: MATCH (< 1e-6)")
         elif max_diff < 1e-3:
-            print(f"    Status: CLOSE (< 1e-3)")
+            print("    Status: CLOSE (< 1e-3)")
         else:
-            print(f"    Status: DIFFERS")
+            print("    Status: DIFFERS")
 
     # Compare LBM-GLS transforms
     print("\nLBM-GLS Transform:")
-    for var in ['y', 'x']:
-        py_col = f'py_lbm_{var}'
-        stata_col = f'lbm_{var}'
+    for var in ["y", "x"]:
+        py_col = f"py_lbm_{var}"
+        stata_col = f"lbm_{var}"
 
         if stata_col not in stata_df.columns:
             print(f"  WARNING: {stata_col} not in Stata output")
@@ -201,17 +212,17 @@ def compare_results():
         print(f"    Correlation: {corr:.10f}")
 
         if max_diff < 1e-6:
-            print(f"    Status: MATCH (< 1e-6)")
+            print("    Status: MATCH (< 1e-6)")
         elif max_diff < 1e-3:
-            print(f"    Status: CLOSE (< 1e-3)")
+            print("    Status: CLOSE (< 1e-3)")
         else:
-            print(f"    Status: DIFFERS")
+            print("    Status: DIFFERS")
 
     # Compare cluster transforms
     print("\nCluster Transform:")
-    for var in ['y', 'x']:
-        py_col = f'py_cl_{var}'
-        stata_col = f'cl_{var}'
+    for var in ["y", "x"]:
+        py_col = f"py_cl_{var}"
+        stata_col = f"cl_{var}"
 
         if stata_col not in stata_df.columns:
             print(f"  WARNING: {stata_col} not in Stata output")
@@ -231,11 +242,11 @@ def compare_results():
         print(f"    Correlation: {corr:.10f}")
 
         if max_diff < 1e-6:
-            print(f"    Status: MATCH (< 1e-6)")
+            print("    Status: MATCH (< 1e-6)")
         elif max_diff < 1e-3:
-            print(f"    Status: CLOSE (< 1e-3)")
+            print("    Status: CLOSE (< 1e-3)")
         else:
-            print(f"    Status: DIFFERS")
+            print("    Status: DIFFERS")
 
     print("\n" + "=" * 60)
 
@@ -259,24 +270,26 @@ def main():
     python_df = run_python_transforms(df)
 
     # Show Python stats
-    coords = df[['lat', 'lon']].values
-    stats = get_transformation_stats(coords, method='nn', latlon=True)
-    print(f"   Mean NN distance: {stats['nn_dist_mean']/1000:.1f} km")
+    coords = df[["lat", "lon"]].values
+    stats = get_transformation_stats(coords, method="nn", latlon=True)
+    print(f"   Mean NN distance: {stats['nn_dist_mean'] / 1000:.1f} km")
 
-    stats_iso = get_transformation_stats(coords, method='iso', radius=200000, latlon=True)
+    stats_iso = get_transformation_stats(
+        coords, method="iso", radius=200000, latlon=True
+    )
     print(f"   ISO neighbors (mean): {stats_iso['neighbors_mean']:.1f}")
 
     # Save Python output for manual comparison
     python_df.to_csv(PROJECT_DIR / "validation_python_output.csv", index=False)
-    print(f"   Python output saved")
+    print("   Python output saved")
 
     print("\n" + "=" * 60)
     print("NEXT STEPS:")
     print("=" * 60)
-    print(f"\n1. Run in Stata:")
+    print("\n1. Run in Stata:")
     print(f'   do "{DO_FILE}"')
-    print(f"\n2. Then run this script again to compare:")
-    print(f"   python validate_against_stata.py --compare")
+    print("\n2. Then run this script again to compare:")
+    print("   python validate_against_stata.py --compare")
 
     # Check if Stata output exists
     if STATA_OUTPUT.exists():
@@ -284,9 +297,10 @@ def main():
         compare_results()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import sys
-    if '--compare' in sys.argv:
+
+    if "--compare" in sys.argv:
         compare_results()
     else:
         main()

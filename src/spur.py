@@ -15,8 +15,9 @@ import pandas as pd
 from typing import Union, List, Optional
 
 
-def haversine_distance(lat1: np.ndarray, lon1: np.ndarray,
-                       lat2: np.ndarray, lon2: np.ndarray) -> np.ndarray:
+def haversine_distance(
+    lat1: np.ndarray, lon1: np.ndarray, lat2: np.ndarray, lon2: np.ndarray
+) -> np.ndarray:
     """
     Compute great-circle distance between points using Haversine formula.
 
@@ -39,7 +40,7 @@ def haversine_distance(lat1: np.ndarray, lon1: np.ndarray,
     dphi = np.radians(lat2 - lat1)
     dlam = np.radians(lon2 - lon1)
 
-    a = np.sin(dphi / 2)**2 + np.cos(phi1) * np.cos(phi2) * np.sin(dlam / 2)**2
+    a = np.sin(dphi / 2) ** 2 + np.cos(phi1) * np.cos(phi2) * np.sin(dlam / 2) ** 2
     return 2 * R * np.arcsin(np.sqrt(a))
 
 
@@ -70,14 +71,15 @@ def get_distance_matrix(coords: np.ndarray, latlon: bool = True) -> np.ndarray:
         lon = coords[:, 1]
 
         # Create meshgrid for all pairs
-        lat1, lat2 = np.meshgrid(lat, lat, indexing='ij')
-        lon1, lon2 = np.meshgrid(lon, lon, indexing='ij')
+        lat1, lat2 = np.meshgrid(lat, lat, indexing="ij")
+        lon1, lon2 = np.meshgrid(lon, lon, indexing="ij")
 
         distmat = haversine_distance(lat1, lon1, lat2, lon2)
     else:
         # Euclidean distance
         from scipy.spatial.distance import cdist
-        distmat = cdist(coords, coords, metric='euclidean')
+
+        distmat = cdist(coords, coords, metric="euclidean")
 
     return distmat
 
@@ -185,8 +187,10 @@ def iso_matrix(coords: np.ndarray, radius: float, latlon: bool = True) -> np.nda
     # Report if any observations have no neighbors
     if no_neighbors.any():
         n_isolated = no_neighbors.sum()
-        print(f"Warning: {n_isolated} observation(s) have no neighbors within radius {radius}. "
-              f"These observations will be set to 0.")
+        print(
+            f"Warning: {n_isolated} observation(s) have no neighbors within radius {radius}. "
+            f"These observations will be set to 0."
+        )
 
     return M
 
@@ -328,9 +332,14 @@ def cluster_matrix(cluster: np.ndarray) -> np.ndarray:
     return M
 
 
-def transform(data: np.ndarray, coords: np.ndarray, method: str = 'nn',
-              radius: Optional[float] = None, latlon: bool = True,
-              cluster: Optional[np.ndarray] = None) -> np.ndarray:
+def transform(
+    data: np.ndarray,
+    coords: np.ndarray,
+    method: str = "nn",
+    radius: Optional[float] = None,
+    latlon: bool = True,
+    cluster: Optional[np.ndarray] = None,
+) -> np.ndarray:
     """
     Apply spatial differencing transformation to data.
 
@@ -359,20 +368,22 @@ def transform(data: np.ndarray, coords: np.ndarray, method: str = 'nn',
     ndarray
         Transformed data with same shape as input
     """
-    if method == 'nn':
+    if method == "nn":
         M = nn_matrix(coords, latlon=latlon)
-    elif method == 'iso':
+    elif method == "iso":
         if radius is None:
             raise ValueError("radius must be specified for method='iso'")
         M = iso_matrix(coords, radius, latlon=latlon)
-    elif method == 'lbmgls':
+    elif method == "lbmgls":
         M = lbmgls_matrix(coords, latlon=latlon)
-    elif method == 'cluster':
+    elif method == "cluster":
         if cluster is None:
             raise ValueError("cluster must be specified for method='cluster'")
         M = cluster_matrix(cluster)
     else:
-        raise ValueError(f"Unknown method: {method}. Use 'nn', 'iso', 'lbmgls', or 'cluster'.")
+        raise ValueError(
+            f"Unknown method: {method}. Use 'nn', 'iso', 'lbmgls', or 'cluster'."
+        )
 
     # Apply transformation: M @ data
     # Handle both 1D and 2D data
@@ -382,10 +393,16 @@ def transform(data: np.ndarray, coords: np.ndarray, method: str = 'nn',
         return M @ data
 
 
-def spurtransform(df: pd.DataFrame, varlist: Union[str, List[str]],
-                  coord_cols: List[str], method: str = 'nn',
-                  radius: Optional[float] = None, latlon: bool = True,
-                  prefix: str = 'd_', cluster_col: Optional[str] = None) -> pd.DataFrame:
+def spurtransform(
+    df: pd.DataFrame,
+    varlist: Union[str, List[str]],
+    coord_cols: List[str],
+    method: str = "nn",
+    radius: Optional[float] = None,
+    latlon: bool = True,
+    prefix: str = "d_",
+    cluster_col: Optional[str] = None,
+) -> pd.DataFrame:
     """
     Apply SPUR transformation to variables in a DataFrame.
 
@@ -454,23 +471,27 @@ def spurtransform(df: pd.DataFrame, varlist: Union[str, List[str]],
 
     # Validate coordinate columns
     if coords.shape[1] != 2:
-        raise ValueError(f"coord_cols must specify exactly 2 columns, got {len(coord_cols)}")
+        raise ValueError(
+            f"coord_cols must specify exactly 2 columns, got {len(coord_cols)}"
+        )
 
     # Check for missing coordinates
     if np.any(np.isnan(coords)):
-        raise ValueError("Coordinate columns contain missing values. "
-                        "Remove or impute missing coordinates before transformation.")
+        raise ValueError(
+            "Coordinate columns contain missing values. "
+            "Remove or impute missing coordinates before transformation."
+        )
 
     # Build transformation matrix once (reuse for all variables)
-    if method == 'nn':
+    if method == "nn":
         M = nn_matrix(coords, latlon=latlon)
-    elif method == 'iso':
+    elif method == "iso":
         if radius is None:
             raise ValueError("radius must be specified for method='iso'")
         M = iso_matrix(coords, radius, latlon=latlon)
-    elif method == 'lbmgls':
+    elif method == "lbmgls":
         M = lbmgls_matrix(coords, latlon=latlon)
-    elif method == 'cluster':
+    elif method == "cluster":
         if cluster_col is None:
             raise ValueError("cluster_col must be specified for method='cluster'")
         if cluster_col not in df.columns:
@@ -478,7 +499,9 @@ def spurtransform(df: pd.DataFrame, varlist: Union[str, List[str]],
         cluster = df[cluster_col].values
         M = cluster_matrix(cluster)
     else:
-        raise ValueError(f"Unknown method: {method}. Use 'nn', 'iso', 'lbmgls', or 'cluster'.")
+        raise ValueError(
+            f"Unknown method: {method}. Use 'nn', 'iso', 'lbmgls', or 'cluster'."
+        )
 
     # Transform each variable
     for var in varlist:
@@ -489,8 +512,10 @@ def spurtransform(df: pd.DataFrame, varlist: Union[str, List[str]],
 
         # Handle missing values in data
         if np.any(np.isnan(data)):
-            print(f"Warning: Variable '{var}' contains {np.isnan(data).sum()} missing values. "
-                  f"Transformed values involving missing data will be NaN.")
+            print(
+                f"Warning: Variable '{var}' contains {np.isnan(data).sum()} missing values. "
+                f"Transformed values involving missing data will be NaN."
+            )
 
         # Apply transformation
         transformed = M @ data
@@ -502,9 +527,12 @@ def spurtransform(df: pd.DataFrame, varlist: Union[str, List[str]],
     return df
 
 
-def get_transformation_stats(coords: np.ndarray, method: str = 'nn',
-                            radius: Optional[float] = None,
-                            latlon: bool = True) -> dict:
+def get_transformation_stats(
+    coords: np.ndarray,
+    method: str = "nn",
+    radius: Optional[float] = None,
+    latlon: bool = True,
+) -> dict:
     """
     Compute summary statistics for the transformation matrix.
 
@@ -547,29 +575,29 @@ def get_transformation_stats(coords: np.ndarray, method: str = 'nn',
     nn_distances = np.min(distmat_no_diag, axis=1)
 
     stats = {
-        'n_obs': n,
-        'method': method,
-        'dist_min': upper_tri.min(),
-        'dist_max': upper_tri.max(),
-        'dist_mean': upper_tri.mean(),
-        'dist_median': np.median(upper_tri),
-        'nn_dist_mean': nn_distances.mean(),
-        'nn_dist_max': nn_distances.max(),
+        "n_obs": n,
+        "method": method,
+        "dist_min": upper_tri.min(),
+        "dist_max": upper_tri.max(),
+        "dist_mean": upper_tri.mean(),
+        "dist_median": np.median(upper_tri),
+        "nn_dist_mean": nn_distances.mean(),
+        "nn_dist_max": nn_distances.max(),
     }
 
-    if method == 'iso' and radius is not None:
-        stats['radius'] = radius
+    if method == "iso" and radius is not None:
+        stats["radius"] = radius
         neighbors = (distmat < radius) & (distmat > 0)
         neighbor_counts = neighbors.sum(axis=1)
-        stats['n_isolated'] = (neighbor_counts == 0).sum()
-        stats['neighbors_mean'] = neighbor_counts.mean()
-        stats['neighbors_min'] = neighbor_counts.min()
-        stats['neighbors_max'] = neighbor_counts.max()
+        stats["n_isolated"] = (neighbor_counts == 0).sum()
+        stats["neighbors_mean"] = neighbor_counts.mean()
+        stats["neighbors_min"] = neighbor_counts.min()
+        stats["neighbors_max"] = neighbor_counts.max()
 
     return stats
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Quick self-test with synthetic data
     np.random.seed(42)
     n = 10
@@ -585,7 +613,7 @@ if __name__ == '__main__':
     # Test distance matrix
     distmat = get_distance_matrix(coords, latlon=True)
     print("Distance matrix shape:", distmat.shape)
-    print("Distance range (km):", distmat.min()/1000, "-", distmat.max()/1000)
+    print("Distance range (km):", distmat.min() / 1000, "-", distmat.max() / 1000)
 
     # Test NN transformation
     M_nn = nn_matrix(coords, latlon=True)
@@ -601,14 +629,9 @@ if __name__ == '__main__':
     print("  Transformed mean:", y_iso.mean())
 
     # Test DataFrame interface
-    df = pd.DataFrame({
-        'lat': lat,
-        'lon': lon,
-        'y': y,
-        'x': np.random.randn(n)
-    })
+    df = pd.DataFrame({"lat": lat, "lon": lon, "y": y, "x": np.random.randn(n)})
 
-    df_out = spurtransform(df, ['y', 'x'], ['lat', 'lon'], method='nn')
+    df_out = spurtransform(df, ["y", "x"], ["lat", "lon"], method="nn")
     print("\nDataFrame columns after transform:", list(df_out.columns))
 
     print("\nAll tests passed!")

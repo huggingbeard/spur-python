@@ -1,7 +1,5 @@
-
-
 from .spur import (
-    haversine_distance, 
+    haversine_distance,
     get_distance_matrix,
     nn_matrix,
     iso_matrix,
@@ -20,7 +18,7 @@ from .spurhalflife import (
     spurhalflife,
 )
 
-all= [
+all = [
     "haversine_distance",
     "get_distance_matrix",
     "nn_matrix",

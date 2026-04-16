@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 import json
 
-from spurtest import spurtest
+from spur import spurtest
 
 plt.rcParams.update({"font.family": "serif", "font.size": 10})
 FIG_DIR = Path("D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/figures")

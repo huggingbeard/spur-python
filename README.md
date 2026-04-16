@@ -82,7 +82,7 @@ df = spurtransform(df, ['y'], ['lat', 'lon'], method='cluster',
 Test for spatial unit roots:
 
 ```python
-from spurtest import spurtest
+from spur import spurtest
 
 # Test I(1) null (unit root) on variable y
 result = spurtest(df, 'i1', 'y', ['lat', 'lon'], q=15, nrep=100000)
@@ -105,7 +105,7 @@ result = spurtest(df, 'i0resid', 'y', ['lat', 'lon'],
 Construct confidence sets for spatial persistence:
 
 ```python
-from spurhalflife import spurhalflife
+from spur import spurhalflife
 
 # 95% CI for spatial half-life (in meters)
 result = spurhalflife(df, 'y', ['lat', 'lon'])

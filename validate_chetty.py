@@ -81,7 +81,7 @@ def run_validation():
     TLFPR_d_py = H @ TLFPR_std.values
 
     # Compare against MW
-    mw_complete = df_complete[["AM_d", "TLFPR_d"]].dropna()
+    # mw_complete = df_complete[["AM_d", "TLFPR_d"]].dropna() # DG: was unused
 
     print("\n" + "=" * 70)
     print("LBM-GLS TRANSFORMATION: Python vs MW Reference")

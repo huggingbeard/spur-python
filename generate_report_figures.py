@@ -209,7 +209,7 @@ def fig_validation_summary():
 
 def fig_mc_convergence():
     """Show how LR and ha_param converge as nrep grows."""
-    from spurtest import spurtest
+    from spur import spurtest
 
     df = pd.read_csv(
         "D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/spurtest_data.csv"

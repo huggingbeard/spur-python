@@ -11,7 +11,7 @@ Notes:
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from spurtest import spurtest
+from spur import spurtest
 
 PROJECT_DIR = Path("D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python")
 SPUR_CODE = Path("D:/UZHechist Dropbox/Joachim Voth/SPUR-Stata/SPUR_code")

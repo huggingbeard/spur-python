@@ -11,8 +11,8 @@ import json
 from pathlib import Path
 
 from spur import spurtransform
-from spurtest import spurtest
-from spurhalflife import spurhalflife
+from spur import spurtest
+from spur import spurhalflife
 
 plt.rcParams.update({"font.family": "serif", "font.size": 10})
 FIG_DIR = Path("D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/figures")

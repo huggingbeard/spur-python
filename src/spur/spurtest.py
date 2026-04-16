@@ -12,7 +12,7 @@ Reference: Becker, Boll, Voth (2025) SPUR Stata Package
 
 import numpy as np
 import pandas as pd
-from typing import List, Optional
+from typing import List, Optional, Literal
 from dataclasses import dataclass
 from spur import get_distance_matrix, get_sigma_lbm, demean_matrix
 
@@ -677,7 +677,7 @@ def spatial_i0_test_residual(
 
 def spurtest(
     df: pd.DataFrame,
-    test_type: str,
+    test_type: Literal["i1", "i0", "i1resid", "i0resid"],
     varname: str,
     coord_cols: List[str],
     indepvars: Optional[List[str]] = None,
@@ -693,7 +693,7 @@ def spurtest(
     ----------
     df : DataFrame
         Input data
-    test_type : str
+    test_type : Literal["i1", "i0", "i1resid", "i0resid"]
         One of 'i1', 'i0', 'i1resid', 'i0resid'
     varname : str
         Variable to test (dependent variable for residual tests)

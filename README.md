@@ -27,28 +27,20 @@ A Python implementation of the methods for diagnosing and correcting spatial uni
 
 ## Installation
 
-```bash
-# Create virtual environment
-uv venv .venv --python 3.12
-source .venv/Scripts/activate  # Windows
-# source .venv/bin/activate    # Linux/Mac
+The package is not yet published on PyPI, but you can install it from source:
 
-# Install dependencies
-uv pip install numpy pandas scipy matplotlib
+```bash
+git clone https://github.com/huggingbeard/spur-python
+cd spur-python
+uv pip install -e .
 ```
 
-Or with pip:
-```bash
-pip install numpy pandas scipy matplotlib
-```
-
-## Package Structure
+## Repo Structure
 
 ```
 spur-python/
-├── spurtest.py          # spurtest: diagnostic tests (i1, i0, i1resid, i0resid)
-├── spur.py              # spurtransform: spatial differencing (nn, iso, lbmgls, cluster)
-├── spurhalflife.py      # spurhalflife: confidence intervals for spatial half-life
+├── src/                 # Source code for spurtest, spurtransform, spurhalflife 
+├── tests/               # Unit and property-based tests
 ├── example.py           # Demo script with synthetic data
 ├── test_spur.py         # Property-based tests
 └── report.pdf           # Full validation report
@@ -73,12 +65,10 @@ print(result.summary())
 result = spurtest(df, 'i0', 'y', ['lat', 'lon'])
 
 # Test I(1) null on regression residuals (y ~ x1 + x2)
-result = spurtest(df, 'i1resid', 'y', ['lat', 'lon'],
-                  indepvars=['x1', 'x2'])
+result = spurtest(df, 'i1resid', 'y', ['lat', 'lon'], indepvars=['x1', 'x2'])
 
 # Test I(0) null on residuals
-result = spurtest(df, 'i0resid', 'y', ['lat', 'lon'],
-                  indepvars=['x1', 'x2'])
+result = spurtest(df, 'i0resid', 'y', ['lat', 'lon'], indepvars=['x1', 'x2'])
 ```
 
 ### 2. Transformation (`spurtransform`)
@@ -98,8 +88,9 @@ df = spurtransform(df, ['y'], ['lat', 'lon'], method='nn')
 df = spurtransform(df, ['y'], ['lat', 'lon'], method='iso', radius=200000)
 
 # Within-cluster demeaning
-df = spurtransform(df, ['y'], ['lat', 'lon'], method='cluster',
-                   cluster_col='state')
+df = spurtransform(
+  df, ['y'], ['lat', 'lon'], method='cluster', cluster_col='state'
+)
 ```
 
 ### 3. Half-Life Confidence Interval (`spurhalflife`)

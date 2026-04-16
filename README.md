@@ -198,6 +198,8 @@ See [`report.pdf`](./report.pdf) §7 for the full benchmark methodology and deta
 
 Reproducing Muller-Watson (2024) Figure 4:
 
+![MW 2024 Figure 4 replication](./figures/chetty_maps.png)
+
 ```python
 import pandas as pd
 from spur import spurtransform

@@ -27,7 +27,20 @@ A Python implementation of the methods for diagnosing and correcting spatial uni
 
 ## Installation
 
-The package is not yet published on PyPI, but you can install it from source:
+From PyPI (coming soon):
+
+```bash
+uv pip install spur-python
+```
+
+From github:
+
+```bash
+uv venv --python 3.11
+uv pip install "git+https://github.com/huggingbeard/spur-python.git@v0.1.0"
+```
+
+or build from source:
 
 ```bash
 git clone https://github.com/huggingbeard/spur-python

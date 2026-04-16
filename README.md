@@ -46,8 +46,8 @@ pip install numpy pandas scipy matplotlib
 
 ```
 spur-python/
-├── spur.py              # spurtransform: spatial differencing (nn, iso, lbmgls, cluster)
 ├── spurtest.py          # spurtest: diagnostic tests (i1, i0, i1resid, i0resid)
+├── spur.py              # spurtransform: spatial differencing (nn, iso, lbmgls, cluster)
 ├── spurhalflife.py      # spurhalflife: confidence intervals for spatial half-life
 ├── example.py           # Demo script with synthetic data
 ├── test_spur.py         # Property-based tests
@@ -56,28 +56,9 @@ spur-python/
 
 ## Basic Usage
 
-### 1. Transformation (`spurtransform`)
+The typical workflow is: **test first** to detect a spatial unit root, **transform** to remove it, and optionally **estimate the half-life** of spatial persistence.
 
-Transform variables to remove spatial unit roots:
-
-```python
-from spur import spurtransform
-
-# LBM-GLS transformation (recommended default)
-df = spurtransform(df, ['y', 'x'], ['lat', 'lon'], method='lbmgls')
-
-# Nearest-neighbor differencing
-df = spurtransform(df, ['y'], ['lat', 'lon'], method='nn')
-
-# Isotropic (200km radius)
-df = spurtransform(df, ['y'], ['lat', 'lon'], method='iso', radius=200000)
-
-# Within-cluster demeaning
-df = spurtransform(df, ['y'], ['lat', 'lon'], method='cluster',
-                   cluster_col='state')
-```
-
-### 2. Diagnostic Tests (`spurtest`)
+### 1. Diagnostic Tests (`spurtest`)
 
 Test for spatial unit roots:
 
@@ -98,6 +79,27 @@ result = spurtest(df, 'i1resid', 'y', ['lat', 'lon'],
 # Test I(0) null on residuals
 result = spurtest(df, 'i0resid', 'y', ['lat', 'lon'],
                   indepvars=['x1', 'x2'])
+```
+
+### 2. Transformation (`spurtransform`)
+
+Transform variables to remove spatial unit roots:
+
+```python
+from spur import spurtransform
+
+# LBM-GLS transformation (recommended default)
+df = spurtransform(df, ['y', 'x'], ['lat', 'lon'], method='lbmgls')
+
+# Nearest-neighbor differencing
+df = spurtransform(df, ['y'], ['lat', 'lon'], method='nn')
+
+# Isotropic (200km radius)
+df = spurtransform(df, ['y'], ['lat', 'lon'], method='iso', radius=200000)
+
+# Within-cluster demeaning
+df = spurtransform(df, ['y'], ['lat', 'lon'], method='cluster',
+                   cluster_col='state')
 ```
 
 ### 3. Half-Life Confidence Interval (`spurhalflife`)
@@ -121,14 +123,14 @@ All functions validated against the Stata SPUR package:
 
 | Function | Method | Status |
 |----------|--------|--------|
-| `spurtransform` | nn | Max diff 4.3e-07 |
-| `spurtransform` | iso | Max diff 3.5e-07 |
-| `spurtransform` | lbmgls | Max diff 1.4e-05 |
-| `spurtransform` | cluster | Exact match |
 | `spurtest` | i1 | LR exact, p-value within MC noise |
 | `spurtest` | i0 | LR exact, p-value within MC noise |
 | `spurtest` | i1resid | LR exact, p-value within MC noise |
 | `spurtest` | i0resid | LR exact, p-value within MC noise |
+| `spurtransform` | nn | Max diff 4.3e-07 |
+| `spurtransform` | iso | Max diff 3.5e-07 |
+| `spurtransform` | lbmgls | Max diff 1.4e-05 |
+| `spurtransform` | cluster | Exact match |
 | `spurhalflife` | — | CI bounds match to floating-point |
 
 The Muller-Watson (2024) Chetty mobility replication reproduces all published values exactly.

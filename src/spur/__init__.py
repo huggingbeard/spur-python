@@ -3,7 +3,7 @@
 
 from .data import load_chetty_data
 
-from .spur import (
+from .spurtransform import (
     haversine_distance,
     get_distance_matrix,
     nn_matrix,

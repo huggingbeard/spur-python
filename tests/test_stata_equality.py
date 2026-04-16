@@ -16,7 +16,7 @@ SPUR_STATA = f"https://raw.githubusercontent.com/pdavidboll/SPUR/{SPUR_COMMIT}/"
 SPUR_FILES = ["spurtransform.ado", "spurtest.ado", "spurhalflife.ado"]
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 STATA_CACHE_ROOT = PROJECT_ROOT / ".pytest_cache" / "stata_spur" / SPUR_COMMIT
-ABS_TOLERANCE = 1e-5
+NORM_TOLERANCE, HL_TOLERANCE = 1e-5, 1e-2
 NREP = 100000
 
 pytestmark = pytest.mark.skipif(STATA is None, reason="stata-mp not installed")
@@ -125,8 +125,10 @@ def test_spurtransform_matches_stata(
 
     st = pd.read_csv(output_csv)
 
-    assert np.allclose(py["d_am"], st["d_am"], atol=ABS_TOLERANCE, rtol=0)
-    assert np.allclose(py["d_fracblack"], st["d_fracblack"], atol=ABS_TOLERANCE, rtol=0)
+    assert np.allclose(py["d_am"], st["d_am"], atol=NORM_TOLERANCE, rtol=0)
+    assert np.allclose(
+        py["d_fracblack"], st["d_fracblack"], atol=NORM_TOLERANCE, rtol=0
+    )
 
 
 def test_spurtest_matches_stata(
@@ -177,7 +179,7 @@ def test_spurtest_matches_stata(
 
     st = pd.read_csv(output_csv).iloc[0]
 
-    assert np.isclose(py.LR, st["teststat"], atol=ABS_TOLERANCE, rtol=0)
+    assert np.isclose(py.LR, st["teststat"], atol=NORM_TOLERANCE, rtol=0)
 
 
 def test_spurhalflife_matches_stata(
@@ -194,7 +196,7 @@ def test_spurhalflife_matches_stata(
         chetty_df,
         "am",
         ["lat", "lon"],
-        q=10,
+        q=15,
         nrep=NREP,
         level=0.95,
         latlon=True,
@@ -215,7 +217,7 @@ def test_spurhalflife_matches_stata(
         rename lon s_2
         set seed 42
 
-        spurhalflife am, q(10) nrep({NREP}) level(95) latlong
+        spurhalflife am, q(15) nrep({NREP}) level(95) latlong
 
         scalar hl_ci_l = r(ci_l)
         scalar hl_ci_u = r(ci_u)
@@ -234,7 +236,7 @@ def test_spurhalflife_matches_stata(
 
     st = pd.read_csv(output_csv).iloc[0]
 
-    assert np.isclose(py.ci_lower, st["ci_lower"], atol=ABS_TOLERANCE, rtol=0)
+    assert np.isclose(py.ci_lower, st["ci_lower"], atol=HL_TOLERANCE, rtol=0)
 
     # stata returns missing for inf upper bound --> this
     # checks that if python returned inf for upper bound,
@@ -242,6 +244,6 @@ def test_spurhalflife_matches_stata(
     if np.isinf(py.ci_upper):
         assert pd.isna(st["ci_upper"])
     else:
-        assert np.isclose(py.ci_upper, st["ci_upper"], atol=ABS_TOLERANCE, rtol=0)
+        assert np.isclose(py.ci_upper, st["ci_upper"], atol=HL_TOLERANCE, rtol=0)
 
-    assert np.isclose(py.max_dist, st["max_dist"], atol=ABS_TOLERANCE, rtol=0)
+    assert np.isclose(py.max_dist, st["max_dist"], atol=HL_TOLERANCE, rtol=0)

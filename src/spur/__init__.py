@@ -1,6 +1,8 @@
 # TODO: we might eventually want to just export
 # the user facing main functions and keep the utils internal
 
+from .data import load_chetty_data
+
 from .spur import (
     haversine_distance,
     get_distance_matrix,
@@ -42,6 +44,7 @@ from .spurtest import (
 )
 
 __all__ = [
+    "load_chetty_data",
     "haversine_distance",
     "get_distance_matrix",
     "nn_matrix",

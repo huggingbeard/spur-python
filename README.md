@@ -194,6 +194,8 @@ Reproducing Muller-Watson (2024) Figure 4:
 
 Top row: standardized AM (left) and TLFPR (right) by commuting zone (decile map). Bottom row: the same variables after LBM-GLS differencing with `spurtransform`. Both maps lose their strong spatial gradient after transformation — reproducing MW's Figure 4.
 
+> **Data:** `Chetty_Data_1.xlsx` is not shipped with this repo — it comes from the Muller & Watson (2024) [Econometrica replication package](https://doi.org/10.3982/ECTA21654).
+
 ```python
 import pandas as pd
 from spur import spurtransform

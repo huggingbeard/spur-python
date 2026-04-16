@@ -297,7 +297,8 @@ def get_ha_parm_I0(
     g2 = g
 
     # Step 3: Bisection
-    ii = 0
+    ii = 1  # DG: changed from 0 for consistency with stata
+    # https://github.com/pdavidboll/SPUR/blob/main/mata/get_ha_parm_I0.mata#L33
     while abs(pow_ - 0.5) > 0.01:
         g = (g1 + g2) / 2
         pow_ = getpow_qf(om_ho, om_i0 + g * om_bm, e)

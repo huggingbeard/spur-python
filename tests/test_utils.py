@@ -232,6 +232,33 @@ def test_spurtransform_dataframe():
     print("  Original data preserved: OK")
 
 
+def test_spurtransform_cluster_with_string_dtype():
+    """Test cluster transformation with pandas string dtype labels."""
+    print("\nTesting cluster transformation with string dtype labels...")
+
+    df = pd.DataFrame(
+        {
+            "lat": [45, 46, 47, 48, 49],
+            "lon": [10, 11, 12, 13, 14],
+            "state": pd.Series(["TN", "TN", "NC", "NC", "VA"], dtype="string"),
+            "y": [1, 2, 3, 4, 5],
+        }
+    )
+
+    df_cluster = spurtransform(
+        df,
+        "y",
+        ["lat", "lon"],
+        method="cluster",
+        cluster_col="state",
+        prefix="cluster_",
+    )
+
+    assert "cluster_y" in df_cluster.columns, "Should have cluster_y column"
+    assert len(df_cluster) == len(df), "Should preserve row count"
+    print("  Cluster transform works with string dtype labels: OK")
+
+
 def test_missing_coordinates_error():
     """Test that missing coordinates raise error."""
     print("\nTesting missing coordinate handling...")
@@ -311,6 +338,7 @@ def run_all_tests():
     test_nn_ties()
     test_transform_constant()
     test_spurtransform_dataframe()
+    test_spurtransform_cluster_with_string_dtype()
     test_missing_coordinates_error()
     test_get_transformation_stats()
     test_euclidean_vs_haversine()

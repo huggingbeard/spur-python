@@ -10,7 +10,7 @@ import json
 from spur import spurtest
 
 plt.rcParams.update({"font.family": "serif", "font.size": 10})
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 FIG_DIR = ROOT / "figures"
 FIG_DIR.mkdir(exist_ok=True)
 CHECKPOINT = FIG_DIR / "mc_convergence_data.json"

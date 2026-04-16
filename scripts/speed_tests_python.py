@@ -15,7 +15,7 @@ from spur import spurtest
 from spur import spurhalflife
 
 plt.rcParams.update({"font.family": "serif", "font.size": 10})
-FIG_DIR = Path(__file__).resolve().parent / "figures"
+FIG_DIR = Path(__file__).resolve().parents[1] / "figures"
 FIG_DIR.mkdir(exist_ok=True)
 CHECKPOINT = FIG_DIR / "speed_test_results.json"
 

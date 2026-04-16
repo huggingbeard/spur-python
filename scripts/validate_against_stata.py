@@ -13,7 +13,7 @@ import pandas as pd
 from pathlib import Path
 from spur import spurtransform, get_transformation_stats
 
-PROJECT_DIR = Path(__file__).resolve().parent
+PROJECT_DIR = Path(__file__).resolve().parents[1]
 SPUR_CODE = Path(
     "D:/UZHechist Dropbox/Joachim Voth/SPUR-Stata/SPUR_code"
 )  # TODO: @JV this should not be the latest version

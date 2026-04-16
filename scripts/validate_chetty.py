@@ -17,7 +17,7 @@ from pathlib import Path
 import statsmodels.api as sm
 from spur import lbmgls_matrix
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 
 DATA_DIR = Path(ROOT / "test_data" / "ReplicationPackage_MS21654_MuellerWatson_r2")
 
@@ -142,7 +142,7 @@ def run_validation():
     df_out = df_complete.copy()
     df_out["AM_d_py"] = AM_d_py
     df_out["TLFPR_d_py"] = TLFPR_d_py
-    df_out.to_csv("chetty_python_validation.csv", index=False)
+    df_out.to_csv(ROOT / "chetty_python_validation.csv", index=False)
 
     return {
         "n_obs": len(df_complete),

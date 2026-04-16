@@ -18,8 +18,8 @@ plt.rcParams.update(
     }
 )
 
-ROOT = Path(__file__).resolve().parent
-FIG_DIR = Path(__file__).resolve().parent / "figures"
+ROOT = Path(__file__).resolve().parents[1]
+FIG_DIR = Path(__file__).resolve().parents[1] / "figures"
 
 # Load results
 with open(FIG_DIR / "speed_test_results.json") as f:

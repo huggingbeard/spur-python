@@ -1,3 +1,6 @@
+![Tests](https://github.com/huggingbeard/spur-python/actions/workflows/test.yaml/badge.svg)
+![Python Version](https://img.shields.io/badge/python-3.11+-blue)
+
 # spur-python: A Python Package for Spatial Unit Roots
 
 A Python implementation of the methods for diagnosing and correcting spatial unit roots developed by Muller and Watson (2024). This is a complete port of the Stata package [SPUR](https://github.com/pdavidboll/SPUR) (Becker, Boll and Voth 2025) — see the [forthcoming *Stata Journal* article](https://warwick.ac.uk/fac/soc/economics/research/workingpapers/2025/twerp_1541-_becker.pdf) for the practitioner's guide.

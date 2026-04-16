@@ -155,12 +155,6 @@ Running `spurtransform` on Chetty's data reproduces every reported Muller-Watson
 
 Every reported digit matches MW's published values.
 
-### Replication of Muller-Watson (2024) Figure 4
-
-![Chetty decile maps before/after LBM-GLS](./figures/chetty_maps.png)
-
-Top row: standardized AM (left) and TLFPR (right) by commuting zone (decile map). Bottom row: the same variables after LBM-GLS differencing with `spurtransform`. Both maps lose their strong spatial gradient after transformation — reproducing MW's Figure 4.
-
 ### The collapse of spatial dependence
 
 ![Chetty regressions: before and after LBM-GLS](./figures/chetty_regressions.png)

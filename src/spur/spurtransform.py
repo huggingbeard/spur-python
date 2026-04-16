@@ -496,7 +496,9 @@ def spurtransform(
             raise ValueError("cluster_col must be specified for method='cluster'")
         if cluster_col not in df.columns:
             raise ValueError(f"Cluster column '{cluster_col}' not found in DataFrame")
-        cluster = df[cluster_col].values
+        # Fix: previous `.values` returned a pandas StringArray here; `cluster_matrix`
+        # expects a 1D NumPy array.
+        cluster = df[cluster_col].to_numpy()
         M = cluster_matrix(cluster)
     else:
         raise ValueError(

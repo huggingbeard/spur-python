@@ -41,7 +41,7 @@ from .spurtest import (
     spurtest,
 )
 
-all = [
+__all__ = [
     "haversine_distance",
     "get_distance_matrix",
     "nn_matrix",

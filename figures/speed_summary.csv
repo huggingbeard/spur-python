@@ -1,7 +1,7 @@
 function,median_speedup,min_speedup,max_speedup
 spurhalflife,1.65,0.76,2.06
-spurtest_i0,6.85,2.65,8.25
-spurtest_i1,5.0,4.59,12.93
+spurtest_i0,4.25,1.2,8.25
+spurtest_i1,4.7,0.94,12.93
 transform_iso,5.55,0.75,12.56
 transform_lbmgls,1.67,0.4,51.77
 transform_nn,4.78,3.52,1164.82

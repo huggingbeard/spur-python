@@ -165,11 +165,11 @@ Every reported digit matches MW's published values.
 
 Python vs Stata wall-clock benchmarks on identical synthetic data, varying N (observations) and `nrep` (Monte Carlo draws).
 
-### Diagnostic tests — the biggest Python win
+### Diagnostic tests — big Python win at small/medium N
 
 ![spurtest speedup](./figures/speed_tests.png)
 
-`spurtest` is consistently **5–13× faster** in Python. The dominant cost is vectorized Monte Carlo arithmetic, which NumPy handles natively.
+At small-to-medium N (≤ 300), `spurtest` runs **5–13× faster** in Python — the dominant cost is vectorized Monte Carlo arithmetic, which NumPy handles natively. At N ≥ 1000, the O(N³) eigendecomposition starts to dominate and the two languages converge (Python retains a modest 1–2× edge on average, occasionally losing to Stata's Mata on the i1 test).
 
 ### Transformations — mixed picture
 
@@ -177,14 +177,14 @@ Python vs Stata wall-clock benchmarks on identical synthetic data, varying N (ob
 
 For small samples, Python crushes Stata (up to **1000×** for `nn` at N=100, largely due to Stata's per-command overhead). For LBM-GLS at large N, the two are roughly at parity — Stata's Mata is well-tuned for eigendecomposition.
 
-| Function | Median Python Speedup |
-|----------|-----------------------|
-| `spurtest i1` | 5.0× |
-| `spurtest i0` | 6.8× |
+| Function | Median Python Speedup (N ∈ {100, 300, 1000, 3000}) |
+|----------|---------------------------------------------------|
+| `spurtest i1` | 4.7× |
+| `spurtest i0` | 4.3× |
 | `spurtransform nn` | 4.8× |
 | `spurtransform iso` | 5.6× |
 | `spurtransform lbmgls` | 1.7× |
-| `spurhalflife` | ~1.5× |
+| `spurhalflife` | ~1.7× |
 
 See [`report.pdf`](./report.pdf) §7 for the full benchmark methodology and detailed tables.
 

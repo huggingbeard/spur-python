@@ -109,6 +109,9 @@ ax.set_ylabel('Python speedup (Stata / Python)')
 ax.set_title('Test speedup by N')
 ax.legend()
 ax.set_xscale('log')
+ax.set_xticks(ns)
+ax.set_xticklabels([str(n) for n in ns])
+ax.minorticks_off()
 
 ax = axes[1]
 # Direct timing comparison
@@ -126,6 +129,9 @@ ax.set_title('spurtest time at nrep=50000')
 ax.legend()
 ax.set_xscale('log')
 ax.set_yscale('log')
+ax.set_xticks(ns)
+ax.set_xticklabels([str(n) for n in ns])
+ax.minorticks_off()
 
 plt.tight_layout()
 plt.savefig(FIG_DIR / 'speed_tests.png', dpi=150, bbox_inches='tight')

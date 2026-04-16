@@ -133,6 +133,10 @@ All functions validated against the Stata SPUR package:
 
 The Muller-Watson (2024) Chetty mobility replication reproduces all published values exactly.
 
+![Validation summary: max abs diff Python vs Stata](./figures/validation_summary.png)
+
+Maximum absolute difference between Python and Stata for each validated function, on a log scale. Every value sits below the 10⁻³ Monte-Carlo noise threshold.
+
 ## Validation against Chetty (MW 2024)
 
 Muller and Watson (2024) motivate spatial differencing with Raj Chetty's Commuting-Zone intergenerational-mobility data. The level regression of absolute mobility (AM) on teenage labor-force-participation rate (TLFPR) produces a strong apparent relationship that collapses after LBM-GLS differencing — a warning that spatial patterns may reflect spatial unit roots rather than a real relationship.
@@ -154,12 +158,6 @@ Running `spurtransform` on Chetty's data reproduces every reported Muller-Watson
 | t-stat after LBM-GLS              | 2.68          | **2.68**    |
 
 Every reported digit matches MW's published values.
-
-### Overall validation summary
-
-![Validation summary: max abs diff Python vs Stata](./figures/validation_summary.png)
-
-Maximum absolute difference between Python and Stata for each validated function, on a log scale. Every value sits below the 10⁻³ Monte-Carlo noise threshold.
 
 ## Performance
 

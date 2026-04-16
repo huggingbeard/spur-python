@@ -2,6 +2,8 @@
 
 A Python implementation of the methods for diagnosing and correcting spatial unit roots developed by Muller and Watson (2024). This is a complete port of the Stata package [SPUR](https://github.com/pdavidboll/SPUR) (Becker, Boll and Voth 2025).
 
+> **Full validation report:** See [`report.pdf`](./report.pdf) for implementation details, Stata cross-validation, Monte Carlo convergence diagnostics, the Muller-Watson Chetty mobility replication, and speed benchmarks.
+
 ## Citation
 
 ```bibtex
@@ -133,15 +135,30 @@ The Muller-Watson (2024) Chetty mobility replication reproduces all published va
 
 ## Performance
 
-Python vs Stata benchmarks:
+Python vs Stata wall-clock benchmarks on identical synthetic data, varying N (observations) and `nrep` (Monte Carlo draws).
 
-| Function | Python Speedup |
-|----------|----------------|
-| `spurtest i1` | 5-13x faster |
-| `spurtest i0` | 5-13x faster |
-| `spurtransform nn` | 5-1000x faster (small N) |
-| `spurtransform lbmgls` | ~1.7x faster |
-| `spurhalflife` | ~1.5x faster |
+### Diagnostic tests — the biggest Python win
+
+![spurtest speedup](./figures/speed_tests.png)
+
+`spurtest` is consistently **5–13× faster** in Python. The dominant cost is vectorized Monte Carlo arithmetic, which NumPy handles natively.
+
+### Transformations — mixed picture
+
+![spurtransform speedup](./figures/speed_transform.png)
+
+For small samples, Python crushes Stata (up to **1000×** for `nn` at N=100, largely due to Stata's per-command overhead). For LBM-GLS at large N, the two are roughly at parity — Stata's Mata is well-tuned for eigendecomposition.
+
+| Function | Median Python Speedup |
+|----------|-----------------------|
+| `spurtest i1` | 5.0× |
+| `spurtest i0` | 6.8× |
+| `spurtransform nn` | 4.8× |
+| `spurtransform iso` | 5.6× |
+| `spurtransform lbmgls` | 1.7× |
+| `spurhalflife` | ~1.5× |
+
+See [`report.pdf`](./report.pdf) §7 for the full benchmark methodology and detailed tables.
 
 ## Example: Chetty Mobility Data
 

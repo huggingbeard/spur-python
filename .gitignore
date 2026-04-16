@@ -1,0 +1,21 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.log
+test_data/
+notes/
+
+# Intermediate/output files
+example_output.csv
+validation_*.csv
+chetty_python_validation.csv
+spurtest_data.csv
+stata_*.csv
+mc_variability_comparison.png
+report_v2.*
+*.tex
+
+# Context files (local project memory)
+CONTEXT.md
+LOG.md

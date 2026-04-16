@@ -178,5 +178,53 @@
     "n": 300,
     "nrep": 50000,
     "time_sec": 64.23448410024866
+  },
+  {
+    "function": "spurtest_i1",
+    "n": 1000,
+    "nrep": 10000,
+    "time_sec": 3.256418799981475
+  },
+  {
+    "function": "spurtest_i0",
+    "n": 1000,
+    "nrep": 10000,
+    "time_sec": 12.493681950028986
+  },
+  {
+    "function": "spurtest_i1",
+    "n": 1000,
+    "nrep": 50000,
+    "time_sec": 4.9462889498099685
+  },
+  {
+    "function": "spurtest_i0",
+    "n": 1000,
+    "nrep": 50000,
+    "time_sec": 14.497798499884084
+  },
+  {
+    "function": "spurtest_i1",
+    "n": 3000,
+    "nrep": 10000,
+    "time_sec": 38.70897594979033
+  },
+  {
+    "function": "spurtest_i0",
+    "n": 3000,
+    "nrep": 10000,
+    "time_sec": 94.53076474973932
+  },
+  {
+    "function": "spurtest_i1",
+    "n": 3000,
+    "nrep": 50000,
+    "time_sec": 36.24380240007304
+  },
+  {
+    "function": "spurtest_i0",
+    "n": 3000,
+    "nrep": 50000,
+    "time_sec": 82.48834234988317
   }
 ]

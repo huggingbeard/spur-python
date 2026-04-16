@@ -1,6 +1,6 @@
 # spur-python: A Python Package for Spatial Unit Roots
 
-A Python implementation of the methods for diagnosing and correcting spatial unit roots developed by Muller and Watson (2024). This is a complete port of the Stata package [SPUR](https://github.com/pdavidboll/SPUR) (Becker, Boll and Voth 2025).
+A Python implementation of the methods for diagnosing and correcting spatial unit roots developed by Muller and Watson (2024). This is a complete port of the Stata package [SPUR](https://github.com/pdavidboll/SPUR) (Becker, Boll and Voth 2025) — see the [forthcoming *Stata Journal* article](https://warwick.ac.uk/fac/soc/economics/research/workingpapers/2025/twerp_1541-_becker.pdf) for the practitioner's guide.
 
 > **Full validation report:** See [`report.pdf`](./report.pdf) for implementation details, Stata cross-validation, Monte Carlo convergence diagnostics, the Muller-Watson Chetty mobility replication, and speed benchmarks.
 
@@ -46,8 +46,8 @@ pip install numpy pandas scipy matplotlib
 
 ```
 spur-python/
-├── spur.py              # spurtransform: spatial differencing (nn, iso, lbmgls, cluster)
 ├── spurtest.py          # spurtest: diagnostic tests (i1, i0, i1resid, i0resid)
+├── spur.py              # spurtransform: spatial differencing (nn, iso, lbmgls, cluster)
 ├── spurhalflife.py      # spurhalflife: confidence intervals for spatial half-life
 ├── example.py           # Demo script with synthetic data
 ├── test_spur.py         # Property-based tests
@@ -56,28 +56,9 @@ spur-python/
 
 ## Basic Usage
 
-### 1. Transformation (`spurtransform`)
+The typical workflow is: **test first** to detect a spatial unit root, **transform** to remove it, and optionally **estimate the half-life** of spatial persistence.
 
-Transform variables to remove spatial unit roots:
-
-```python
-from spur import spurtransform
-
-# LBM-GLS transformation (recommended default)
-df = spurtransform(df, ['y', 'x'], ['lat', 'lon'], method='lbmgls')
-
-# Nearest-neighbor differencing
-df = spurtransform(df, ['y'], ['lat', 'lon'], method='nn')
-
-# Isotropic (200km radius)
-df = spurtransform(df, ['y'], ['lat', 'lon'], method='iso', radius=200000)
-
-# Within-cluster demeaning
-df = spurtransform(df, ['y'], ['lat', 'lon'], method='cluster',
-                   cluster_col='state')
-```
-
-### 2. Diagnostic Tests (`spurtest`)
+### 1. Diagnostic Tests (`spurtest`)
 
 Test for spatial unit roots:
 
@@ -98,6 +79,27 @@ result = spurtest(df, 'i1resid', 'y', ['lat', 'lon'],
 # Test I(0) null on residuals
 result = spurtest(df, 'i0resid', 'y', ['lat', 'lon'],
                   indepvars=['x1', 'x2'])
+```
+
+### 2. Transformation (`spurtransform`)
+
+Transform variables to remove spatial unit roots:
+
+```python
+from spur import spurtransform
+
+# LBM-GLS transformation (recommended default)
+df = spurtransform(df, ['y', 'x'], ['lat', 'lon'], method='lbmgls')
+
+# Nearest-neighbor differencing
+df = spurtransform(df, ['y'], ['lat', 'lon'], method='nn')
+
+# Isotropic (200km radius)
+df = spurtransform(df, ['y'], ['lat', 'lon'], method='iso', radius=200000)
+
+# Within-cluster demeaning
+df = spurtransform(df, ['y'], ['lat', 'lon'], method='cluster',
+                   cluster_col='state')
 ```
 
 ### 3. Half-Life Confidence Interval (`spurhalflife`)
@@ -121,14 +123,14 @@ All functions validated against the Stata SPUR package:
 
 | Function | Method | Status |
 |----------|--------|--------|
-| `spurtransform` | nn | Max diff 4.3e-07 |
-| `spurtransform` | iso | Max diff 3.5e-07 |
-| `spurtransform` | lbmgls | Max diff 1.4e-05 |
-| `spurtransform` | cluster | Exact match |
 | `spurtest` | i1 | LR exact, p-value within MC noise |
 | `spurtest` | i0 | LR exact, p-value within MC noise |
 | `spurtest` | i1resid | LR exact, p-value within MC noise |
 | `spurtest` | i0resid | LR exact, p-value within MC noise |
+| `spurtransform` | nn | Max diff 4.3e-07 |
+| `spurtransform` | iso | Max diff 3.5e-07 |
+| `spurtransform` | lbmgls | Max diff 1.4e-05 |
+| `spurtransform` | cluster | Exact match |
 | `spurhalflife` | — | CI bounds match to floating-point |
 
 The Muller-Watson (2024) Chetty mobility replication reproduces all published values exactly.
@@ -163,11 +165,11 @@ Every reported digit matches MW's published values.
 
 Python vs Stata wall-clock benchmarks on identical synthetic data, varying N (observations) and `nrep` (Monte Carlo draws).
 
-### Diagnostic tests — the biggest Python win
+### Diagnostic tests — big Python win at small/medium N
 
 ![spurtest speedup](./figures/speed_tests.png)
 
-`spurtest` is consistently **5–13× faster** in Python. The dominant cost is vectorized Monte Carlo arithmetic, which NumPy handles natively.
+At small-to-medium N (≤ 300), `spurtest` runs **5–13× faster** in Python — the dominant cost is vectorized Monte Carlo arithmetic, which NumPy handles natively. At N ≥ 1000, the O(N³) eigendecomposition starts to dominate and the two languages converge (Python retains a modest 1–2× edge on average, occasionally losing to Stata's Mata on the i1 test).
 
 ### Transformations — mixed picture
 
@@ -175,14 +177,14 @@ Python vs Stata wall-clock benchmarks on identical synthetic data, varying N (ob
 
 For small samples, Python crushes Stata (up to **1000×** for `nn` at N=100, largely due to Stata's per-command overhead). For LBM-GLS at large N, the two are roughly at parity — Stata's Mata is well-tuned for eigendecomposition.
 
-| Function | Median Python Speedup |
-|----------|-----------------------|
-| `spurtest i1` | 5.0× |
-| `spurtest i0` | 6.8× |
+| Function | Median Python Speedup (N ∈ {100, 300, 1000, 3000}) |
+|----------|---------------------------------------------------|
+| `spurtest i1` | 4.7× |
+| `spurtest i0` | 4.3× |
 | `spurtransform nn` | 4.8× |
 | `spurtransform iso` | 5.6× |
 | `spurtransform lbmgls` | 1.7× |
-| `spurhalflife` | ~1.5× |
+| `spurhalflife` | ~1.7× |
 
 See [`report.pdf`](./report.pdf) §7 for the full benchmark methodology and detailed tables.
 
@@ -230,7 +232,7 @@ print(f"LBM-GLS: beta={model_d.params[1]:.4f}, R2={model_d.rsquared:.4f}")
 ## References
 
 - Muller, Ulrich K. and Mark W. Watson (2024). "Spatial Unit Roots and Spurious Regression." *Econometrica* 92(5), 1661-1695.
-- Becker, Sascha O., P. David Boll, and Hans-Joachim Voth (2025). "Testing and Correcting for Spatial Unit Roots in Regression Analysis." *Stata Journal*, forthcoming.
+- Becker, Sascha O., P. David Boll, and Hans-Joachim Voth (2025). "Testing and Correcting for Spatial Unit Roots in Regression Analysis." *Stata Journal*, forthcoming. [[PDF]](https://warwick.ac.uk/fac/soc/economics/research/workingpapers/2025/twerp_1541-_becker.pdf)
 - Chetty, Raj, Nathaniel Hendren, Patrick Kline, and Emmanuel Saez (2014). "Where is the Land of Opportunity? The Geography of Intergenerational Mobility in the United States." *QJE* 129(4).
 
 ## License

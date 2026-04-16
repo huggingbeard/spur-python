@@ -155,11 +155,11 @@ Running `spurtransform` on Chetty's data reproduces every reported Muller-Watson
 
 Every reported digit matches MW's published values.
 
-### The collapse of spatial dependence
+### Overall validation summary
 
-![Chetty regressions: before and after LBM-GLS](./figures/chetty_regressions.png)
+![Validation summary: max abs diff Python vs Stata](./figures/validation_summary.png)
 
-AM-TLFPR scatter and OLS line, before (left) and after (right) LBM-GLS differencing. The R² drops from **0.44 to 0.04** once the common spatial trend is removed — exactly as Muller and Watson (2024) document.
+Maximum absolute difference between Python and Stata for each validated function, on a log scale. Every value sits below the 10⁻³ Monte-Carlo noise threshold.
 
 ## Performance
 

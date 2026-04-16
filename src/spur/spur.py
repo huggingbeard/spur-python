@@ -63,7 +63,7 @@ def get_distance_matrix(coords: np.ndarray, latlon: bool = True) -> np.ndarray:
         Symmetric distance matrix where entry (i,j) is distance between
         observations i and j.
     """
-    n = coords.shape[0]
+    # n = coords.shape[0] # DG: unused
 
     if latlon:
         # Haversine: vectorized computation for all pairs
@@ -233,7 +233,7 @@ def get_sigma_lbm(distmat: np.ndarray) -> np.ndarray:
     ndarray of shape (n, n)
         LBM covariance matrix
     """
-    n = distmat.shape[0]
+    # n = distmat.shape[0] # DG: n not needed
     # d[:,0] broadcast as column, d[0,:] broadcast as row
     sigma_lbm = 0.5 * (distmat[:, 0:1] + distmat[0:1, :] - distmat)
     return sigma_lbm

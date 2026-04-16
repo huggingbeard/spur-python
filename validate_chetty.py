@@ -17,9 +17,9 @@ from pathlib import Path
 import statsmodels.api as sm
 from spur import lbmgls_matrix
 
-DATA_DIR = Path(
-    "D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/test_data/ReplicationPackage_MS21654_MuellerWatson_r2"
-)
+ROOT = Path(__file__).resolve().parent
+
+DATA_DIR = Path(ROOT / "test_data" / "ReplicationPackage_MS21654_MuellerWatson_r2")
 
 
 def load_chetty():

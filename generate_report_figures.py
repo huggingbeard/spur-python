@@ -20,7 +20,8 @@ plt.rcParams.update(
     }
 )
 
-FIG_DIR = Path("D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/figures")
+ROOT = Path(__file__).resolve().parent
+FIG_DIR = ROOT / "figures"
 FIG_DIR.mkdir(exist_ok=True)
 
 # ============================================================
@@ -31,8 +32,11 @@ FIG_DIR.mkdir(exist_ok=True)
 def fig_chetty_maps():
     """2x2 map of original and transformed variables."""
     chetty = pd.read_excel(
-        "D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/test_data/"
-        "ReplicationPackage_MS21654_MuellerWatson_r2/Data/Chetty_Data_1.xlsx"
+        ROOT
+        / "test_data"
+        / "ReplicationPackage_MS21654_MuellerWatson_r2"
+        / "Data"
+        / "Chetty_Data_1.xlsx"
     )
     chetty = chetty[~chetty["State"].isin(["AK", "HI"])]
     chetty = chetty.dropna(subset=["AM", "TLFPR"]).reset_index(drop=True)
@@ -84,8 +88,11 @@ def fig_chetty_maps():
 def fig_chetty_regressions():
     """Scatter plots showing the regression before and after LBM-GLS."""
     chetty = pd.read_excel(
-        "D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/test_data/"
-        "ReplicationPackage_MS21654_MuellerWatson_r2/Data/Chetty_Data_1.xlsx"
+        ROOT
+        / "test_data"
+        / "ReplicationPackage_MS21654_MuellerWatson_r2"
+        / "Data"
+        / "Chetty_Data_1.xlsx"
     )
     chetty = chetty[~chetty["State"].isin(["AK", "HI"])]
     chetty = chetty.dropna(subset=["AM", "TLFPR"]).reset_index(drop=True)
@@ -151,9 +158,7 @@ def fig_mc_variability():
     """Copy/regenerate the MC variability plot."""
     import shutil
 
-    src = Path(
-        "D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/mc_variability_comparison.png"
-    )
+    src = Path(FIG_DIR / "mc_variability_comparison.png")
     if src.exists():
         shutil.copy(src, FIG_DIR / "mc_variability.png")
         print(f"Copied: {FIG_DIR / 'mc_variability.png'}")
@@ -210,9 +215,7 @@ def fig_mc_convergence():
     """Show how LR and ha_param converge as nrep grows."""
     from spur import spurtest
 
-    df = pd.read_csv(
-        "D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/spurtest_data.csv"
-    )
+    df = pd.read_csv(ROOT / "spurtest_data.csv")
 
     nreps = [100, 500, 1000, 5000, 10000, 50000]
     LR_runs = {n: [] for n in nreps}

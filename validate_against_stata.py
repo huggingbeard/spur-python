@@ -13,9 +13,10 @@ import pandas as pd
 from pathlib import Path
 from spur import spurtransform, get_transformation_stats
 
-# Paths
-PROJECT_DIR = Path("D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python")
-SPUR_CODE = Path("D:/UZHechist Dropbox/Joachim Voth/SPUR-Stata/SPUR_code")
+PROJECT_DIR = Path(__file__).resolve().parent
+SPUR_CODE = Path(
+    "D:/UZHechist Dropbox/Joachim Voth/SPUR-Stata/SPUR_code"
+)  # TODO: @JV this should not be the latest version
 TEST_DATA = PROJECT_DIR / "validation_data.csv"
 STATA_OUTPUT = PROJECT_DIR / "validation_stata_output.csv"
 DO_FILE = PROJECT_DIR / "validation_run.do"
@@ -111,6 +112,12 @@ def run_python_transforms(df: pd.DataFrame, radius: float = 200000) -> pd.DataFr
 
 def compare_results():
     """Compare Stata vs Python outputs."""
+    # TODO DG: i think this should just be a proper test in tests/
+    # if you do want to keep this as standalong script, i think
+    # we should simply execute the do-file as subprocess from python
+    # e.g. subprocess.run(["stata", "-b", "do", str(DO_FILE)], check=True)
+    # (and not hardcode stata to someones location but
+    # discover location with e.g. shutil.which("stata-mp"))
     if not STATA_OUTPUT.exists():
         print(f"ERROR: Stata output not found at {STATA_OUTPUT}")
         print("Please run the do-file in Stata first:")
@@ -263,7 +270,8 @@ def main():
 
     # Step 2: Generate do-file
     print("\n2. Generating Stata do-file...")
-    generate_stata_do_file(radius=200000)
+    if not DO_FILE.exists():  # fix: not overwriting them every time
+        generate_stata_do_file(radius=200000)
 
     # Step 3: Run Python transforms
     print("\n3. Running Python transforms...")

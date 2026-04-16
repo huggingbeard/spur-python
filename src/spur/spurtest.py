@@ -198,8 +198,8 @@ def getpow_qf(om0: np.ndarray, om1: np.ndarray, e: np.ndarray) -> float:
     # ch_om0 = cholesky(om0)'  -> upper triangular
     # ho = ch_om1i * ch_om0'   -> ch_om1i @ (upper)' = ch_om1i @ lower
     # So ch_om0' in Stata expression = transpose of upper = lower triangular = numpy's L
-    ho = ch_om1i @ _cholesky_upper(om0).T
-    ha = ch_om0i @ _cholesky_upper(om1).T
+    ho = ch_om1i @ ch_om0.T  # DG: was re-computed down here
+    ha = ch_om0i @ ch_om1.T  # DG: was re-computed down here
 
     # Quadratic forms
     qe = np.sum(e**2, axis=0)  # sum of squares of each column
@@ -333,7 +333,7 @@ def spatial_i1_test(
     SpurTestResult
     """
     q = emat.shape[0]
-    n = distmat.shape[0]
+    # n = distmat.shape[0] # DG unused
 
     # BM covariance matrix (demeaned)
     sigdm_bm = demean_matrix(get_sigma_lbm(distmat))
@@ -399,7 +399,7 @@ def spatial_i0_test(
     SpurTestResult
     """
     q = emat.shape[0]
-    n = distmat.shape[0]
+    # n = distmat.shape[0] # DG unused
 
     # BM covariance matrix (demeaned)
     sigdm_bm = demean_matrix(get_sigma_lbm(distmat))

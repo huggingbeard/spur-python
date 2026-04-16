@@ -10,13 +10,14 @@ import json
 from spur import spurtest
 
 plt.rcParams.update({"font.family": "serif", "font.size": 10})
-FIG_DIR = Path("D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/figures")
+ROOT = Path(__file__).resolve().parent
+FIG_DIR = ROOT / "figures"
 FIG_DIR.mkdir(exist_ok=True)
 CHECKPOINT = FIG_DIR / "mc_convergence_data.json"
 
 df = pd.read_csv(
-    "D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/spurtest_data.csv"
-)
+    ROOT / "spurtest_data.csv"
+)  # TODO: 1) its on gitignore @JV, 2) think we should ship this as package data
 
 # Skip nrep=100 - too noisy and triggers overflow
 nreps = [1000, 5000, 10000, 50000]

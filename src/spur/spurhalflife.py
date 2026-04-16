@@ -66,7 +66,7 @@ def _c_ci(
         P-value at each c in c_grid_ho
     """
     q = emat.shape[0]
-    n = distmat.shape[0]
+    # n = distmat.shape[0] # DG unused
     n_c_ho = len(c_grid_ho)
     n_c_ha = len(c_grid_ha)
 

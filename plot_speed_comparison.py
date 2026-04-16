@@ -18,15 +18,14 @@ plt.rcParams.update(
     }
 )
 
-FIG_DIR = Path("D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/figures")
+ROOT = Path(__file__).resolve().parent
+FIG_DIR = Path(__file__).resolve().parent / "figures"
 
 # Load results
 with open(FIG_DIR / "speed_test_results.json") as f:
     py = pd.DataFrame(json.load(f))
 
-st = pd.read_csv(
-    "D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python/stata_speed_results.csv"
-)
+st = pd.read_csv(ROOT / "stata_speed_results.csv")
 st = st.rename(columns={"func": "function"})
 
 # Merge

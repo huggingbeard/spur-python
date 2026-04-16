@@ -13,7 +13,7 @@ import pandas as pd
 from pathlib import Path
 from spur import spurtest
 
-PROJECT_DIR = Path("D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python")
+PROJECT_DIR = Path(__file__).resolve().parent
 SPUR_CODE = Path("D:/UZHechist Dropbox/Joachim Voth/SPUR-Stata/SPUR_code")
 TEST_DATA = PROJECT_DIR / "spurtest_data.csv"
 STATA_LOG = PROJECT_DIR / "spurtest_stata.log"

@@ -8,8 +8,13 @@ checks edge cases.
 import numpy as np
 import pandas as pd
 from spur import (
-    get_distance_matrix, nn_matrix, iso_matrix, transform, spurtransform,
-    haversine_distance, get_transformation_stats
+    get_distance_matrix,
+    nn_matrix,
+    iso_matrix,
+    transform,
+    spurtransform,
+    haversine_distance,
+    get_transformation_stats,
 )
 
 np.random.seed(42)
@@ -155,19 +160,15 @@ def test_nn_ties():
     # In an equilateral triangle, point 2 sees both 0 and 1 at equal distance.
     # Points 0 and 1 might find ties or not (depends on floating point).
     # The key test: for point 2, it should split weight between 0 and 1.
-    coords = np.array([
-        [0, 0],
-        [1, 0],
-        [0.5, np.sqrt(3)/2]
-    ])
+    coords = np.array([[0, 0], [1, 0], [0.5, np.sqrt(3) / 2]])
 
     M = nn_matrix(coords, latlon=False)
 
     # Point 2 (row 2) should have two neighbors with -0.5 weight
     row2 = M[2, :]
     neg_vals = row2[row2 < 0]
-    assert len(neg_vals) == 2, f"Row 2 should have 2 negative entries (ties)"
-    assert np.allclose(neg_vals, -0.5), f"Row 2 NN weights should be -0.5 each"
+    assert len(neg_vals) == 2, "Row 2 should have 2 negative entries (ties)"
+    assert np.allclose(neg_vals, -0.5), "Row 2 NN weights should be -0.5 each"
     print("  Ties split equally for point 2: OK")
 
     # All rows should sum to 0 (key invariant)
@@ -188,12 +189,12 @@ def test_transform_constant():
     c = np.ones(n) * 5.0
 
     # NN transform
-    c_nn = transform(c, coords, method='nn')
+    c_nn = transform(c, coords, method="nn")
     assert np.allclose(c_nn, 0, atol=1e-10), "NN transform of constant should be 0"
     print("  NN of constant = 0: OK")
 
     # ISO transform
-    c_iso = transform(c, coords, method='iso', radius=500000)
+    c_iso = transform(c, coords, method="iso", radius=500000)
     assert np.allclose(c_iso, 0, atol=1e-10), "ISO transform of constant should be 0"
     print("  ISO of constant = 0: OK")
 
@@ -202,43 +203,76 @@ def test_spurtransform_dataframe():
     """Test DataFrame interface."""
     print("\nTesting DataFrame interface...")
 
-    df = pd.DataFrame({
-        'lat': [45, 46, 47, 48, 49],
-        'lon': [10, 11, 12, 13, 14],
-        'y': [1, 2, 3, 4, 5],
-        'x': [10, 20, 30, 40, 50]
-    })
+    df = pd.DataFrame(
+        {
+            "lat": [45, 46, 47, 48, 49],
+            "lon": [10, 11, 12, 13, 14],
+            "y": [1, 2, 3, 4, 5],
+            "x": [10, 20, 30, 40, 50],
+        }
+    )
 
     # NN transform
-    df_nn = spurtransform(df, ['y', 'x'], ['lat', 'lon'], method='nn', prefix='nn_')
+    df_nn = spurtransform(df, ["y", "x"], ["lat", "lon"], method="nn", prefix="nn_")
 
-    assert 'nn_y' in df_nn.columns, "Should have nn_y column"
-    assert 'nn_x' in df_nn.columns, "Should have nn_x column"
+    assert "nn_y" in df_nn.columns, "Should have nn_y column"
+    assert "nn_x" in df_nn.columns, "Should have nn_x column"
     assert len(df_nn) == len(df), "Should preserve row count"
     print("  NN columns created: OK")
 
     # ISO transform
-    df_iso = spurtransform(df, 'y', ['lat', 'lon'], method='iso', radius=200000, prefix='iso_')
-    assert 'iso_y' in df_iso.columns, "Should have iso_y column"
+    df_iso = spurtransform(
+        df, "y", ["lat", "lon"], method="iso", radius=200000, prefix="iso_"
+    )
+    assert "iso_y" in df_iso.columns, "Should have iso_y column"
     print("  ISO columns created: OK")
 
     # Original data unchanged
-    assert df_nn['y'].tolist() == [1, 2, 3, 4, 5], "Original y should be unchanged"
+    assert df_nn["y"].tolist() == [1, 2, 3, 4, 5], "Original y should be unchanged"
     print("  Original data preserved: OK")
+
+
+def test_spurtransform_cluster_with_string_dtype():
+    """Test cluster transformation with pandas string dtype labels."""
+    print("\nTesting cluster transformation with string dtype labels...")
+
+    df = pd.DataFrame(
+        {
+            "lat": [45, 46, 47, 48, 49],
+            "lon": [10, 11, 12, 13, 14],
+            "state": pd.Series(["TN", "TN", "NC", "NC", "VA"], dtype="string"),
+            "y": [1, 2, 3, 4, 5],
+        }
+    )
+
+    df_cluster = spurtransform(
+        df,
+        "y",
+        ["lat", "lon"],
+        method="cluster",
+        cluster_col="state",
+        prefix="cluster_",
+    )
+
+    assert "cluster_y" in df_cluster.columns, "Should have cluster_y column"
+    assert len(df_cluster) == len(df), "Should preserve row count"
+    print("  Cluster transform works with string dtype labels: OK")
 
 
 def test_missing_coordinates_error():
     """Test that missing coordinates raise error."""
     print("\nTesting missing coordinate handling...")
 
-    df = pd.DataFrame({
-        'lat': [45, np.nan, 47, 48, 49],
-        'lon': [10, 11, 12, 13, 14],
-        'y': [1, 2, 3, 4, 5]
-    })
+    df = pd.DataFrame(
+        {
+            "lat": [45, np.nan, 47, 48, 49],
+            "lon": [10, 11, 12, 13, 14],
+            "y": [1, 2, 3, 4, 5],
+        }
+    )
 
     try:
-        spurtransform(df, 'y', ['lat', 'lon'], method='nn')
+        spurtransform(df, "y", ["lat", "lon"], method="nn")
         assert False, "Should have raised error for missing coordinates"
     except ValueError as e:
         assert "missing" in str(e).lower(), f"Error should mention missing values: {e}"
@@ -254,18 +288,20 @@ def test_get_transformation_stats():
     lon = np.random.uniform(5, 15, n)
     coords = np.column_stack([lat, lon])
 
-    stats_nn = get_transformation_stats(coords, method='nn', latlon=True)
+    stats_nn = get_transformation_stats(coords, method="nn", latlon=True)
 
-    assert stats_nn['n_obs'] == n, "Should have correct observation count"
-    assert stats_nn['method'] == 'nn', "Should have correct method"
-    assert stats_nn['dist_min'] > 0, "Min distance should be positive"
-    assert stats_nn['dist_max'] > stats_nn['dist_min'], "Max > min"
-    assert stats_nn['nn_dist_mean'] > 0, "NN distance mean should be positive"
+    assert stats_nn["n_obs"] == n, "Should have correct observation count"
+    assert stats_nn["method"] == "nn", "Should have correct method"
+    assert stats_nn["dist_min"] > 0, "Min distance should be positive"
+    assert stats_nn["dist_max"] > stats_nn["dist_min"], "Max > min"
+    assert stats_nn["nn_dist_mean"] > 0, "NN distance mean should be positive"
     print("  NN stats computed: OK")
 
-    stats_iso = get_transformation_stats(coords, method='iso', radius=200000, latlon=True)
-    assert 'n_isolated' in stats_iso, "ISO should have isolated count"
-    assert 'neighbors_mean' in stats_iso, "ISO should have mean neighbors"
+    stats_iso = get_transformation_stats(
+        coords, method="iso", radius=200000, latlon=True
+    )
+    assert "n_isolated" in stats_iso, "ISO should have isolated count"
+    assert "neighbors_mean" in stats_iso, "ISO should have mean neighbors"
     print("  ISO stats computed: OK")
 
 
@@ -302,6 +338,7 @@ def run_all_tests():
     test_nn_ties()
     test_transform_constant()
     test_spurtransform_dataframe()
+    test_spurtransform_cluster_with_string_dtype()
     test_missing_coordinates_error()
     test_get_transformation_stats()
     test_euclidean_vs_haversine()
@@ -311,5 +348,5 @@ def run_all_tests():
     print("=" * 60)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     run_all_tests()

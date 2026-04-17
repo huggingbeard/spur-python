@@ -5,6 +5,8 @@ __pycache__/
 *.log
 test_data/
 notes/
+.pytest_cache/
+.ruff_cache/
 
 # Intermediate/output files
 example_output.csv
@@ -19,3 +21,6 @@ report_v2.*
 # Context files (local project memory)
 CONTEXT.md
 LOG.md
+.DS_Store
+
+*/**/*.egg-info/

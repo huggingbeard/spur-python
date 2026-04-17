@@ -1,3 +1,6 @@
+![Tests](https://github.com/huggingbeard/spur-python/actions/workflows/test.yaml/badge.svg)
+![Python Version](https://img.shields.io/badge/python-3.11+-blue)
+
 # spur-python: A Python Package for Spatial Unit Roots
 
 A Python implementation of the methods for diagnosing and correcting spatial unit roots developed by Muller and Watson (2024). This is a complete port of the Stata package [SPUR](https://github.com/pdavidboll/SPUR) (Becker, Boll and Voth 2025) — see the [forthcoming *Stata Journal* article](https://warwick.ac.uk/fac/soc/economics/research/workingpapers/2025/twerp_1541-_becker.pdf) for the practitioner's guide.
@@ -27,28 +30,33 @@ A Python implementation of the methods for diagnosing and correcting spatial uni
 
 ## Installation
 
-```bash
-# Create virtual environment
-uv venv .venv --python 3.12
-source .venv/Scripts/activate  # Windows
-# source .venv/bin/activate    # Linux/Mac
+From PyPI (coming soon):
 
-# Install dependencies
-uv pip install numpy pandas scipy matplotlib
+```bash
+uv pip install spur-python
 ```
 
-Or with pip:
+From github:
+
 ```bash
-pip install numpy pandas scipy matplotlib
+uv venv --python 3.11
+uv pip install "git+https://github.com/huggingbeard/spur-python.git@v0.1.0"
 ```
 
-## Package Structure
+or build from source:
+
+```bash
+git clone https://github.com/huggingbeard/spur-python
+cd spur-python
+uv pip install -e .
+```
+
+## Repo Structure
 
 ```
 spur-python/
-├── spurtest.py          # spurtest: diagnostic tests (i1, i0, i1resid, i0resid)
-├── spur.py              # spurtransform: spatial differencing (nn, iso, lbmgls, cluster)
-├── spurhalflife.py      # spurhalflife: confidence intervals for spatial half-life
+├── src/                 # Source code for spurtest, spurtransform, spurhalflife 
+├── tests/               # Unit and property-based tests
 ├── example.py           # Demo script with synthetic data
 ├── test_spur.py         # Property-based tests
 └── report.pdf           # Full validation report
@@ -63,7 +71,7 @@ The typical workflow is: **test first** to detect a spatial unit root, **transfo
 Test for spatial unit roots:
 
 ```python
-from spurtest import spurtest
+from spur import spurtest
 
 # Test I(1) null (unit root) on variable y
 result = spurtest(df, 'i1', 'y', ['lat', 'lon'], q=15, nrep=100000)
@@ -73,12 +81,10 @@ print(result.summary())
 result = spurtest(df, 'i0', 'y', ['lat', 'lon'])
 
 # Test I(1) null on regression residuals (y ~ x1 + x2)
-result = spurtest(df, 'i1resid', 'y', ['lat', 'lon'],
-                  indepvars=['x1', 'x2'])
+result = spurtest(df, 'i1resid', 'y', ['lat', 'lon'], indepvars=['x1', 'x2'])
 
 # Test I(0) null on residuals
-result = spurtest(df, 'i0resid', 'y', ['lat', 'lon'],
-                  indepvars=['x1', 'x2'])
+result = spurtest(df, 'i0resid', 'y', ['lat', 'lon'], indepvars=['x1', 'x2'])
 ```
 
 ### 2. Transformation (`spurtransform`)
@@ -98,8 +104,9 @@ df = spurtransform(df, ['y'], ['lat', 'lon'], method='nn')
 df = spurtransform(df, ['y'], ['lat', 'lon'], method='iso', radius=200000)
 
 # Within-cluster demeaning
-df = spurtransform(df, ['y'], ['lat', 'lon'], method='cluster',
-                   cluster_col='state')
+df = spurtransform(
+  df, ['y'], ['lat', 'lon'], method='cluster', cluster_col='state'
+)
 ```
 
 ### 3. Half-Life Confidence Interval (`spurhalflife`)
@@ -107,7 +114,7 @@ df = spurtransform(df, ['y'], ['lat', 'lon'], method='cluster',
 Construct confidence sets for spatial persistence:
 
 ```python
-from spurhalflife import spurhalflife
+from spur import spurhalflife
 
 # 95% CI for spatial half-life (in meters)
 result = spurhalflife(df, 'y', ['lat', 'lon'])

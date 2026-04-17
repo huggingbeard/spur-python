@@ -11,9 +11,9 @@ Notes:
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from spurtest import spurtest
+from spur import spurtest
 
-PROJECT_DIR = Path("D:/UZHechist Dropbox/Joachim Voth/claudecode/spur-python")
+PROJECT_DIR = Path(__file__).resolve().parents[1]
 SPUR_CODE = Path("D:/UZHechist Dropbox/Joachim Voth/SPUR-Stata/SPUR_code")
 TEST_DATA = PROJECT_DIR / "spurtest_data.csv"
 STATA_LOG = PROJECT_DIR / "spurtest_stata.log"
@@ -32,14 +32,16 @@ def create_test_data(n: int = 30, seed: int = 42) -> pd.DataFrame:
     # Variable that is more stationary (I(0)-ish)
     y_i0 = np.random.randn(n)
 
-    df = pd.DataFrame({
-        'id': np.arange(1, n + 1),
-        'lat': lat,
-        'lon': lon,
-        'y_i1': y_i1,
-        'y_i0': y_i0,
-        'x': np.random.randn(n)
-    })
+    df = pd.DataFrame(
+        {
+            "id": np.arange(1, n + 1),
+            "lat": lat,
+            "lon": lon,
+            "y_i1": y_i1,
+            "y_i0": y_i0,
+            "x": np.random.randn(n),
+        }
+    )
 
     return df
 
@@ -104,20 +106,20 @@ def run_python_tests(df: pd.DataFrame, q: int = 10, nrep: int = 1000):
     print("Running Python tests...")
 
     # i1 on y_i1
-    r = spurtest(df, 'i1', 'y_i1', ['lat', 'lon'], q=q, nrep=nrep, seed=42)
-    results['i1_yi1'] = {'LR': r.LR, 'p': r.pvalue, 'ha_param': r.ha_param}
+    r = spurtest(df, "i1", "y_i1", ["lat", "lon"], q=q, nrep=nrep, seed=42)
+    results["i1_yi1"] = {"LR": r.LR, "p": r.pvalue, "ha_param": r.ha_param}
 
     # i0 on y_i1
-    r = spurtest(df, 'i0', 'y_i1', ['lat', 'lon'], q=q, nrep=nrep, seed=42)
-    results['i0_yi1'] = {'LR': r.LR, 'p': r.pvalue, 'ha_param': r.ha_param}
+    r = spurtest(df, "i0", "y_i1", ["lat", "lon"], q=q, nrep=nrep, seed=42)
+    results["i0_yi1"] = {"LR": r.LR, "p": r.pvalue, "ha_param": r.ha_param}
 
     # i1 on y_i0
-    r = spurtest(df, 'i1', 'y_i0', ['lat', 'lon'], q=q, nrep=nrep, seed=42)
-    results['i1_yi0'] = {'LR': r.LR, 'p': r.pvalue, 'ha_param': r.ha_param}
+    r = spurtest(df, "i1", "y_i0", ["lat", "lon"], q=q, nrep=nrep, seed=42)
+    results["i1_yi0"] = {"LR": r.LR, "p": r.pvalue, "ha_param": r.ha_param}
 
     # i0 on y_i0
-    r = spurtest(df, 'i0', 'y_i0', ['lat', 'lon'], q=q, nrep=nrep, seed=42)
-    results['i0_yi0'] = {'LR': r.LR, 'p': r.pvalue, 'ha_param': r.ha_param}
+    r = spurtest(df, "i0", "y_i0", ["lat", "lon"], q=q, nrep=nrep, seed=42)
+    results["i0_yi0"] = {"LR": r.LR, "p": r.pvalue, "ha_param": r.ha_param}
 
     return results
 
@@ -144,11 +146,13 @@ def main():
     print("PYTHON RESULTS")
     print("=" * 60)
     for key, vals in py_results.items():
-        print(f"{key}: LR={vals['LR']:.4f}, p={vals['p']:.4f}, ha={vals['ha_param']:.4f}")
+        print(
+            f"{key}: LR={vals['LR']:.4f}, p={vals['p']:.4f}, ha={vals['ha_param']:.4f}"
+        )
 
-    print(f"\nNext: run do-file in Stata:")
+    print("\nNext: run do-file in Stata:")
     print(f'  do "{DO_FILE}"')
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

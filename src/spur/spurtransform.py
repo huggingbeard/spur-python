@@ -397,7 +397,7 @@ def spurtransform(
     df: pd.DataFrame,
     varlist: Union[str, List[str]],
     coord_cols: List[str],
-    method: str = "nn",
+    method: str = "lbmgls",
     radius: Optional[float] = None,
     latlon: bool = True,
     prefix: str = "d_",

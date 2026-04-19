@@ -475,7 +475,12 @@ def spurtransform(df: pd.DataFrame, varlist: Union[str, List[str]],
             raise ValueError("cluster_col must be specified for method='cluster'")
         if cluster_col not in df.columns:
             raise ValueError(f"Cluster column '{cluster_col}' not found in DataFrame")
-        cluster = df[cluster_col].values
+        if df[cluster_col].isna().any():
+            raise ValueError(
+                f"Cluster column '{cluster_col}' contains missing values. "
+                "All observations must have a valid cluster label."
+            )
+        cluster = np.asarray(df[cluster_col])
         M = cluster_matrix(cluster)
     else:
         raise ValueError(f"Unknown method: {method}. Use 'nn', 'iso', 'lbmgls', or 'cluster'.")

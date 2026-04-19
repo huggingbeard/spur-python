@@ -15,9 +15,10 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from spur import (
     haversine_distance, get_distance_matrix,
-    nn_matrix, iso_matrix, transform, spurtransform,
+    nn_matrix, iso_matrix, lbmgls_matrix, transform, spurtransform,
     get_transformation_stats,
 )
+from spurtest import spurtest
 
 VALIDATION_CSV = Path(__file__).parent.parent / "validation_python_output.csv"
 
@@ -305,6 +306,76 @@ class TestSpurTransform:
         for g in ['Zurich', 'Bern']:
             group_result = out.loc[df['province'] == g, 'cl_y']
             assert group_result.sum() == pytest.approx(0.0, abs=1e-12)
+
+
+# ---------------------------------------------------------------------------
+# Batch-1 issue fixes
+# ---------------------------------------------------------------------------
+
+class TestBatch1Fixes:
+    """Regression tests for the four issues fixed in batch 1."""
+
+    # Issue 1: cluster method must not require coord columns
+    def test_cluster_works_without_coord_cols_in_df(self):
+        """spurtransform(method='cluster') must succeed even if coord_cols are absent."""
+        df = pd.DataFrame({
+            'y': [10.0, 20.0, 30.0, 100.0, 200.0, 300.0],
+            'grp': ['A', 'A', 'A', 'B', 'B', 'B'],
+        })
+        # coord_cols listed but not present — cluster should never touch them
+        out = spurtransform(df, 'y', ['lat', 'lon'], method='cluster', cluster_col='grp')
+        for g in ['A', 'B']:
+            assert out.loc[df['grp'] == g, 'd_y'].sum() == pytest.approx(0.0, abs=1e-12)
+
+    # Issue 2: LBM-GLS div-by-zero on degenerate coords
+    def test_lbmgls_matrix_raises_on_identical_coords(self):
+        """lbmgls_matrix must raise ValueError when all points are identical."""
+        coords = np.zeros((5, 2))
+        with pytest.raises(ValueError, match="identical"):
+            lbmgls_matrix(coords, latlon=False)
+
+    # Issue 3: q >= n must be rejected upfront
+    def test_spurtest_rejects_q_ge_n(self):
+        """spurtest must raise ValueError when q >= n."""
+        n = 10
+        df = pd.DataFrame({
+            'lat': RNG.uniform(45, 55, n),
+            'lon': RNG.uniform(5, 15, n),
+            'y': RNG.standard_normal(n),
+        })
+        with pytest.raises(ValueError, match="q="):
+            spurtest(df, 'i1', 'y', ['lat', 'lon'], q=n, nrep=100, seed=0)
+
+    # Issue 4: collinear X raises on residual tests
+    def test_spurtest_i1resid_raises_on_collinear_X(self):
+        """i1resid must raise ValueError when regressors are collinear."""
+        n = 20
+        x = RNG.standard_normal(n)
+        df = pd.DataFrame({
+            'lat': RNG.uniform(45, 55, n),
+            'lon': RNG.uniform(5, 15, n),
+            'y': RNG.standard_normal(n),
+            'x1': x,
+            'x2': x,  # perfect duplicate → rank-deficient X
+        })
+        with pytest.raises(ValueError, match="rank-deficient"):
+            spurtest(df, 'i1resid', 'y', ['lat', 'lon'],
+                     indepvars=['x1', 'x2'], q=5, nrep=100, seed=0)
+
+    def test_spurtest_i0resid_raises_on_collinear_X(self):
+        """i0resid must raise ValueError when regressors are collinear."""
+        n = 20
+        x = RNG.standard_normal(n)
+        df = pd.DataFrame({
+            'lat': RNG.uniform(45, 55, n),
+            'lon': RNG.uniform(5, 15, n),
+            'y': RNG.standard_normal(n),
+            'x1': x,
+            'x2': x,
+        })
+        with pytest.raises(ValueError, match="rank-deficient"):
+            spurtest(df, 'i0resid', 'y', ['lat', 'lon'],
+                     indepvars=['x1', 'x2'], q=5, nrep=100, seed=0)
 
 
 # ---------------------------------------------------------------------------

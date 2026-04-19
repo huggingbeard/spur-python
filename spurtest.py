@@ -548,6 +548,11 @@ def spatial_i1_test_residual(Y: np.ndarray, X_in: np.ndarray,
     n = distmat.shape[0]
 
     # Projection matrix (annihilator)
+    if np.linalg.matrix_rank(X_in) < X_in.shape[1]:
+        raise ValueError(
+            "Regressor matrix X is rank-deficient (collinear regressors or dummy trap). "
+            "Check for perfectly collinear columns or a full set of category dummies."
+        )
     XtX_inv = np.linalg.inv(X_in.T @ X_in)
     M = np.eye(n) - X_in @ XtX_inv @ X_in.T
 
@@ -606,6 +611,11 @@ def spatial_i0_test_residual(Y: np.ndarray, X_in: np.ndarray,
     n = distmat.shape[0]
 
     # Projection matrix
+    if np.linalg.matrix_rank(X_in) < X_in.shape[1]:
+        raise ValueError(
+            "Regressor matrix X is rank-deficient (collinear regressors or dummy trap). "
+            "Check for perfectly collinear columns or a full set of category dummies."
+        )
     XtX_inv = np.linalg.inv(X_in.T @ X_in)
     M = np.eye(n) - X_in @ XtX_inv @ X_in.T
 
@@ -728,6 +738,13 @@ def spurtest(df: pd.DataFrame, test_type: str, varname: str,
 
     # Get normalized distance matrix
     distmat = get_distmat_normalized(coords, latlon=latlon)
+
+    n = distmat.shape[0]
+    if q >= n:
+        raise ValueError(
+            f"q={q} must be less than n={n}. "
+            f"Use q <= {n - 1}."
+        )
 
     # Generate Monte Carlo draws
     rng = np.random.default_rng(seed)

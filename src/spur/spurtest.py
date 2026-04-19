@@ -573,6 +573,7 @@ def get_ha_parm_I1_residual(
     return c
 
 
+# TODO(rename)
 def spatial_i1_test_residual(
     Y: np.ndarray, X_in: np.ndarray, distmat: np.ndarray, emat: np.ndarray
 ) -> SpurTestResult:
@@ -638,6 +639,7 @@ def spatial_i1_test_residual(
     )
 
 
+# TODO(rename)
 def spatial_i0_test_residual(
     Y: np.ndarray, X_in: np.ndarray, distmat: np.ndarray, emat: np.ndarray
 ) -> SpurTestResult:
@@ -788,10 +790,7 @@ def spurtest(
 
     n = distmat.shape[0]
     if q >= n:
-        raise ValueError(
-            f"q={q} must be less than n={n}. "
-            f"Use q <= {n - 1}."
-        )
+        raise ValueError(f"q={q} must be less than n={n}. Use q <= {n - 1}.")
 
     # Generate Monte Carlo draws
     rng = np.random.default_rng(seed)

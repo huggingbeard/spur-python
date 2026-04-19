@@ -480,7 +480,7 @@ def spurtransform(
 
     # Build transformation matrix once (reuse for all variables).
     # Cluster demeaning does not use coordinates, so skip coord work entirely.
-    if method == 'cluster':
+    if method == "cluster":
         if cluster_col is None:
             raise ValueError("cluster_col must be specified for method='cluster'")
         if cluster_col not in df.columns:
@@ -496,20 +496,26 @@ def spurtransform(
         # All distance-based methods require coordinates.
         coords = df[coord_cols].values
         if coords.shape[1] != 2:
-            raise ValueError(f"coord_cols must specify exactly 2 columns, got {len(coord_cols)}")
+            raise ValueError(
+                f"coord_cols must specify exactly 2 columns, got {len(coord_cols)}"
+            )
         if np.any(np.isnan(coords)):
-            raise ValueError("Coordinate columns contain missing values. "
-                             "Remove or impute missing coordinates before transformation.")
-        if method == 'nn':
+            raise ValueError(
+                "Coordinate columns contain missing values. "
+                "Remove or impute missing coordinates before transformation."
+            )
+        if method == "nn":
             M = nn_matrix(coords, latlon=latlon)
-        elif method == 'iso':
+        elif method == "iso":
             if radius is None:
                 raise ValueError("radius must be specified for method='iso'")
             M = iso_matrix(coords, radius, latlon=latlon)
-        elif method == 'lbmgls':
+        elif method == "lbmgls":
             M = lbmgls_matrix(coords, latlon=latlon)
         else:
-            raise ValueError(f"Unknown method: {method}. Use 'nn', 'iso', 'lbmgls', or 'cluster'.")
+            raise ValueError(
+                f"Unknown method: {method}. Use 'nn', 'iso', 'lbmgls', or 'cluster'."
+            )
 
     # Transform each variable
     for var in varlist:

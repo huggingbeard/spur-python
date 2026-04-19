@@ -12,7 +12,7 @@ Reference: Becker, Boll, Voth (2025) SPUR Stata Package
 
 import numpy as np
 import pandas as pd
-from typing import Union, List, Optional, Dict
+from typing import List, Optional, Literal
 from dataclasses import dataclass
 from spur import get_distance_matrix, get_sigma_lbm, demean_matrix
 
@@ -20,15 +20,16 @@ from spur import get_distance_matrix, get_sigma_lbm, demean_matrix
 @dataclass
 class SpurTestResult:
     """Container for spurtest results."""
+
     test_type: str  # 'i1', 'i0', 'i1resid', 'i0resid'
-    LR: float       # Likelihood ratio test statistic
-    pvalue: float   # P-value
+    LR: float  # Likelihood ratio test statistic
+    pvalue: float  # P-value
     cv: np.ndarray  # Critical values at 1%, 5%, 10%
-    ha_param: float # Alternative hypothesis parameter
+    ha_param: float  # Alternative hypothesis parameter
 
     def summary(self) -> str:
         """Format test results for display."""
-        stat_name = "LFUR" if self.test_type.startswith('i1') else "LFST"
+        stat_name = "LFUR" if self.test_type.startswith("i1") else "LFST"
         lines = [
             f"Spatial {self.test_type.upper()} Test Results",
             "-" * 45,
@@ -197,8 +198,8 @@ def getpow_qf(om0: np.ndarray, om1: np.ndarray, e: np.ndarray) -> float:
     # ch_om0 = cholesky(om0)'  -> upper triangular
     # ho = ch_om1i * ch_om0'   -> ch_om1i @ (upper)' = ch_om1i @ lower
     # So ch_om0' in Stata expression = transpose of upper = lower triangular = numpy's L
-    ho = ch_om1i @ _cholesky_upper(om0).T
-    ha = ch_om0i @ _cholesky_upper(om1).T
+    ho = ch_om1i @ ch_om0.T  # DG: was re-computed down here
+    ha = ch_om0i @ ch_om1.T  # DG: was re-computed down here
 
     # Quadratic forms
     qe = np.sum(e**2, axis=0)  # sum of squares of each column
@@ -218,8 +219,9 @@ def getpow_qf(om0: np.ndarray, om1: np.ndarray, e: np.ndarray) -> float:
     return pow_
 
 
-def get_ha_parm_I1(om_ho: np.ndarray, distmat: np.ndarray,
-                    R: np.ndarray, e: np.ndarray) -> float:
+def get_ha_parm_I1(
+    om_ho: np.ndarray, distmat: np.ndarray, R: np.ndarray, e: np.ndarray
+) -> float:
     """
     Find alternative hypothesis parameter c that yields ~50% power for I(1) test.
     """
@@ -284,8 +286,9 @@ def get_ha_parm_I1(om_ho: np.ndarray, distmat: np.ndarray,
     return c
 
 
-def get_ha_parm_I0(om_ho: np.ndarray, om_i0: np.ndarray,
-                    om_bm: np.ndarray, e: np.ndarray) -> float:
+def get_ha_parm_I0(
+    om_ho: np.ndarray, om_i0: np.ndarray, om_bm: np.ndarray, e: np.ndarray
+) -> float:
     """
     Find alternative hypothesis parameter g that yields ~50% power for I(0) test.
     """
@@ -322,7 +325,8 @@ def get_ha_parm_I0(om_ho: np.ndarray, om_i0: np.ndarray,
     g2 = g
 
     # Step 3: Bisection
-    ii = 0
+    ii = 1  # DG: changed from 0 for consistency with stata
+    # https://github.com/pdavidboll/SPUR/blob/main/mata/get_ha_parm_I0.mata#L33
     while abs(pow_ - 0.5) > 0.01:
         g = (g1 + g2) / 2
         pow_ = getpow_qf(om_ho, om_i0 + g * om_bm, e)
@@ -337,8 +341,9 @@ def get_ha_parm_I0(om_ho: np.ndarray, om_i0: np.ndarray,
     return g
 
 
-def spatial_i1_test(Y: np.ndarray, distmat: np.ndarray,
-                     emat: np.ndarray) -> SpurTestResult:
+def spatial_i1_test(
+    Y: np.ndarray, distmat: np.ndarray, emat: np.ndarray
+) -> SpurTestResult:
     """
     Test H0: I(1) (unit root) for variable Y.
 
@@ -356,7 +361,7 @@ def spatial_i1_test(Y: np.ndarray, distmat: np.ndarray,
     SpurTestResult
     """
     q = emat.shape[0]
-    n = distmat.shape[0]
+    # n = distmat.shape[0] # DG unused
 
     # BM covariance matrix (demeaned)
     sigdm_bm = demean_matrix(get_sigma_lbm(distmat))
@@ -398,16 +403,13 @@ def spatial_i1_test(Y: np.ndarray, distmat: np.ndarray,
     pvalue = float(np.mean(lr_ho > LR))
 
     return SpurTestResult(
-        test_type='i1',
-        LR=LR,
-        pvalue=pvalue,
-        cv=cv_vec,
-        ha_param=ha_parm
+        test_type="i1", LR=LR, pvalue=pvalue, cv=cv_vec, ha_param=ha_parm
     )
 
 
-def spatial_i0_test(Y: np.ndarray, distmat: np.ndarray,
-                     emat: np.ndarray) -> SpurTestResult:
+def spatial_i0_test(
+    Y: np.ndarray, distmat: np.ndarray, emat: np.ndarray
+) -> SpurTestResult:
     """
     Test H0: I(0) (stationarity) for variable Y.
 
@@ -425,7 +427,7 @@ def spatial_i0_test(Y: np.ndarray, distmat: np.ndarray,
     SpurTestResult
     """
     q = emat.shape[0]
-    n = distmat.shape[0]
+    # n = distmat.shape[0] # DG unused
 
     # BM covariance matrix (demeaned)
     sigdm_bm = demean_matrix(get_sigma_lbm(distmat))
@@ -497,11 +499,7 @@ def spatial_i0_test(Y: np.ndarray, distmat: np.ndarray,
     pvalue = float(pvalue_vec.max())
 
     return SpurTestResult(
-        test_type='i0',
-        LR=LR,
-        pvalue=pvalue,
-        cv=cvalue,
-        ha_param=ha_parm
+        test_type="i0", LR=LR, pvalue=pvalue, cv=cvalue, ha_param=ha_parm
     )
 
 
@@ -516,9 +514,9 @@ def get_sigma_residual(distmat: np.ndarray, c: float, M: np.ndarray) -> np.ndarr
     return M @ sigma @ M.T
 
 
-def get_ha_parm_I1_residual(om_ho: np.ndarray, distmat: np.ndarray,
-                             R: np.ndarray, e: np.ndarray,
-                             M: np.ndarray) -> float:
+def get_ha_parm_I1_residual(
+    om_ho: np.ndarray, distmat: np.ndarray, R: np.ndarray, e: np.ndarray, M: np.ndarray
+) -> float:
     """
     Find alternative parameter c yielding ~50% power for I(1) residual test.
     Same structure as get_ha_parm_I1 but uses get_sigma_residual.
@@ -575,9 +573,9 @@ def get_ha_parm_I1_residual(om_ho: np.ndarray, distmat: np.ndarray,
     return c
 
 
-def spatial_i1_test_residual(Y: np.ndarray, X_in: np.ndarray,
-                              distmat: np.ndarray,
-                              emat: np.ndarray) -> SpurTestResult:
+def spatial_i1_test_residual(
+    Y: np.ndarray, X_in: np.ndarray, distmat: np.ndarray, emat: np.ndarray
+) -> SpurTestResult:
     """
     Test H0: I(1) for residuals of regression Y ~ X.
 
@@ -636,17 +634,13 @@ def spatial_i1_test_residual(Y: np.ndarray, X_in: np.ndarray,
     pvalue = float(np.mean(lr_ho > LR))
 
     return SpurTestResult(
-        test_type='i1resid',
-        LR=LR,
-        pvalue=pvalue,
-        cv=cv_vec,
-        ha_param=ha_parm
+        test_type="i1resid", LR=LR, pvalue=pvalue, cv=cv_vec, ha_param=ha_parm
     )
 
 
-def spatial_i0_test_residual(Y: np.ndarray, X_in: np.ndarray,
-                              distmat: np.ndarray,
-                              emat: np.ndarray) -> SpurTestResult:
+def spatial_i0_test_residual(
+    Y: np.ndarray, X_in: np.ndarray, distmat: np.ndarray, emat: np.ndarray
+) -> SpurTestResult:
     """Test H0: I(0) for residuals of regression Y ~ X."""
     q = emat.shape[0]
     n = distmat.shape[0]
@@ -728,18 +722,21 @@ def spatial_i0_test_residual(Y: np.ndarray, X_in: np.ndarray,
     pvalue = float(pvalue_vec.max())
 
     return SpurTestResult(
-        test_type='i0resid',
-        LR=LR,
-        pvalue=pvalue,
-        cv=cvalue,
-        ha_param=ha_parm
+        test_type="i0resid", LR=LR, pvalue=pvalue, cv=cvalue, ha_param=ha_parm
     )
 
 
-def spurtest(df: pd.DataFrame, test_type: str, varname: str,
-             coord_cols: List[str], indepvars: Optional[List[str]] = None,
-             q: int = 15, nrep: int = 100000, latlon: bool = True,
-             seed: Optional[int] = None) -> SpurTestResult:
+def spurtest(
+    df: pd.DataFrame,
+    test_type: Literal["i1", "i0", "i1resid", "i0resid"],
+    varname: str,
+    coord_cols: List[str],
+    indepvars: Optional[List[str]] = None,
+    q: int = 15,
+    nrep: int = 100000,
+    latlon: bool = True,
+    seed: Optional[int] = None,
+) -> SpurTestResult:
     """
     Main user-facing function for SPUR diagnostic tests.
 
@@ -747,7 +744,7 @@ def spurtest(df: pd.DataFrame, test_type: str, varname: str,
     ----------
     df : DataFrame
         Input data
-    test_type : str
+    test_type : Literal["i1", "i0", "i1resid", "i0resid"]
         One of 'i1', 'i0', 'i1resid', 'i0resid'
     varname : str
         Variable to test (dependent variable for residual tests)
@@ -769,9 +766,10 @@ def spurtest(df: pd.DataFrame, test_type: str, varname: str,
     SpurTestResult
     """
     # Validate inputs
-    if test_type not in ('i1', 'i0', 'i1resid', 'i0resid'):
-        raise ValueError(f"Unknown test_type: {test_type}. "
-                        "Use 'i1', 'i0', 'i1resid', or 'i0resid'.")
+    if test_type not in ("i1", "i0", "i1resid", "i0resid"):
+        raise ValueError(
+            f"Unknown test_type: {test_type}. Use 'i1', 'i0', 'i1resid', or 'i0resid'."
+        )
 
     # Extract data
     coords = df[coord_cols].values
@@ -800,11 +798,11 @@ def spurtest(df: pd.DataFrame, test_type: str, varname: str,
     emat = rng.standard_normal((q, nrep))
 
     # Run test
-    if test_type == 'i1':
+    if test_type == "i1":
         result = spatial_i1_test(Y, distmat, emat)
-    elif test_type == 'i0':
+    elif test_type == "i0":
         result = spatial_i0_test(Y, distmat, emat)
-    elif test_type in ('i1resid', 'i0resid'):
+    elif test_type in ("i1resid", "i0resid"):
         # Build X_in with constant (always included like Stata)
         n = len(Y)
         if indepvars is None or len(indepvars) == 0:
@@ -813,7 +811,7 @@ def spurtest(df: pd.DataFrame, test_type: str, varname: str,
             X = df[indepvars].values
             X_in = np.column_stack([np.ones(n), X])
 
-        if test_type == 'i1resid':
+        if test_type == "i1resid":
             result = spatial_i1_test_residual(Y, X_in, distmat, emat)
         else:
             result = spatial_i0_test_residual(Y, X_in, distmat, emat)
@@ -821,7 +819,7 @@ def spurtest(df: pd.DataFrame, test_type: str, varname: str,
     return result
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Quick test with synthetic data
     np.random.seed(42)
     n = 30
@@ -829,12 +827,12 @@ if __name__ == '__main__':
     lon = np.random.uniform(5, 15, n)
     y = np.random.randn(n) + 0.2 * lat  # mild spatial correlation
 
-    df = pd.DataFrame({'lat': lat, 'lon': lon, 'y': y})
+    df = pd.DataFrame({"lat": lat, "lon": lon, "y": y})
 
     print("Testing spurtest i1 (small N=30, nrep=1000)...")
-    result = spurtest(df, 'i1', 'y', ['lat', 'lon'], q=10, nrep=1000, seed=42)
+    result = spurtest(df, "i1", "y", ["lat", "lon"], q=10, nrep=1000, seed=42)
     print(result.summary())
 
     print("\nTesting spurtest i0 (small N=30, nrep=1000)...")
-    result = spurtest(df, 'i0', 'y', ['lat', 'lon'], q=10, nrep=1000, seed=42)
+    result = spurtest(df, "i0", "y", ["lat", "lon"], q=10, nrep=1000, seed=42)
     print(result.summary())

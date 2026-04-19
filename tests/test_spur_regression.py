@@ -10,16 +10,11 @@ import numpy as np
 import pandas as pd
 import pytest
 from pathlib import Path
-import sys
-
-sys.path.insert(0, str(Path(__file__).parent.parent))
 from spur import (
     haversine_distance, get_distance_matrix,
     nn_matrix, iso_matrix, lbmgls_matrix, transform, spurtransform,
-    get_transformation_stats,
+    get_transformation_stats, spurtest, spurhalflife,
 )
-from spurtest import spurtest
-from spurhalflife import spurhalflife
 
 VALIDATION_CSV = Path(__file__).parent.parent / "validation_python_output.csv"
 

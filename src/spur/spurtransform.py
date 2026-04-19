@@ -63,9 +63,15 @@ def get_distance_matrix(coords: np.ndarray, latlon: bool = True) -> np.ndarray:
         Symmetric distance matrix where entry (i,j) is distance between
         observations i and j.
     """
-    # n = coords.shape[0] # DG: unused
+    n = coords.shape[0]
 
     if latlon:
+        if n > 10_000:
+            raise ValueError(
+                f"n={n} exceeds the safe limit for full n×n haversine distance computation "
+                f"(limit: 10,000). At this size the matrix requires >{n**2 * 8 // 1_000_000} MB "
+                "and will likely OOM. Use a blocked/sparse implementation for large datasets."
+            )
         # Haversine: vectorized computation for all pairs
         lat = coords[:, 0]
         lon = coords[:, 1]
@@ -271,7 +277,13 @@ def lbmgls_matrix(coords: np.ndarray, latlon: bool = True) -> np.ndarray:
 
     # Get distance matrix and normalize
     distmat = get_distance_matrix(coords, latlon=latlon)
-    distmat = distmat / distmat.max()
+    max_dist = distmat.max()
+    if max_dist <= 1e-10:
+        raise ValueError(
+            "All coordinates are identical (or nearly so) — LBM-GLS normalization "
+            "requires distinct locations."
+        )
+    distmat = distmat / max_dist
 
     # Get demeaned LBM covariance
     sigma_lbm = get_sigma_lbm(distmat)
@@ -466,44 +478,38 @@ def spurtransform(
     if isinstance(varlist, str):
         varlist = [varlist]
 
-    # Extract coordinates
-    coords = df[coord_cols].values
-
-    # Validate coordinate columns
-    if coords.shape[1] != 2:
-        raise ValueError(
-            f"coord_cols must specify exactly 2 columns, got {len(coord_cols)}"
-        )
-
-    # Check for missing coordinates
-    if np.any(np.isnan(coords)):
-        raise ValueError(
-            "Coordinate columns contain missing values. "
-            "Remove or impute missing coordinates before transformation."
-        )
-
-    # Build transformation matrix once (reuse for all variables)
-    if method == "nn":
-        M = nn_matrix(coords, latlon=latlon)
-    elif method == "iso":
-        if radius is None:
-            raise ValueError("radius must be specified for method='iso'")
-        M = iso_matrix(coords, radius, latlon=latlon)
-    elif method == "lbmgls":
-        M = lbmgls_matrix(coords, latlon=latlon)
-    elif method == "cluster":
+    # Build transformation matrix once (reuse for all variables).
+    # Cluster demeaning does not use coordinates, so skip coord work entirely.
+    if method == 'cluster':
         if cluster_col is None:
             raise ValueError("cluster_col must be specified for method='cluster'")
         if cluster_col not in df.columns:
             raise ValueError(f"Cluster column '{cluster_col}' not found in DataFrame")
-        # Fix: previous `.values` returned a pandas StringArray here; `cluster_matrix`
-        # expects a 1D NumPy array.
+        if df[cluster_col].isna().any():
+            raise ValueError(
+                f"Cluster column '{cluster_col}' contains missing values. "
+                "All observations must have a valid cluster label."
+            )
         cluster = df[cluster_col].to_numpy()
         M = cluster_matrix(cluster)
     else:
-        raise ValueError(
-            f"Unknown method: {method}. Use 'nn', 'iso', 'lbmgls', or 'cluster'."
-        )
+        # All distance-based methods require coordinates.
+        coords = df[coord_cols].values
+        if coords.shape[1] != 2:
+            raise ValueError(f"coord_cols must specify exactly 2 columns, got {len(coord_cols)}")
+        if np.any(np.isnan(coords)):
+            raise ValueError("Coordinate columns contain missing values. "
+                             "Remove or impute missing coordinates before transformation.")
+        if method == 'nn':
+            M = nn_matrix(coords, latlon=latlon)
+        elif method == 'iso':
+            if radius is None:
+                raise ValueError("radius must be specified for method='iso'")
+            M = iso_matrix(coords, radius, latlon=latlon)
+        elif method == 'lbmgls':
+            M = lbmgls_matrix(coords, latlon=latlon)
+        else:
+            raise ValueError(f"Unknown method: {method}. Use 'nn', 'iso', 'lbmgls', or 'cluster'.")
 
     # Transform each variable
     for var in varlist:

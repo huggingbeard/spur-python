@@ -19,6 +19,7 @@ from spur import (
     get_transformation_stats,
 )
 from spurtest import spurtest
+from spurhalflife import spurhalflife
 
 VALIDATION_CSV = Path(__file__).parent.parent / "validation_python_output.csv"
 
@@ -376,6 +377,88 @@ class TestBatch1Fixes:
         with pytest.raises(ValueError, match="rank-deficient"):
             spurtest(df, 'i0resid', 'y', ['lat', 'lon'],
                      indepvars=['x1', 'x2'], q=5, nrep=100, seed=0)
+
+
+# ---------------------------------------------------------------------------
+# Batch-2 issue fixes
+# ---------------------------------------------------------------------------
+
+class TestBatch2Fixes:
+    """Regression tests for the five issues fixed in batch 2."""
+
+    # Issue 5: NaN/inf in Y must fail fast with a clear error
+    def test_spurtest_rejects_nan_y(self):
+        n = 20
+        df = pd.DataFrame({
+            'lat': RNG.uniform(45, 55, n),
+            'lon': RNG.uniform(5, 15, n),
+            'y': np.where(np.arange(n) == 5, np.nan, RNG.standard_normal(n)),
+        })
+        with pytest.raises(ValueError, match="NaN or inf"):
+            spurtest(df, 'i1', 'y', ['lat', 'lon'], q=5, nrep=100, seed=0)
+
+    def test_spurtest_rejects_inf_y(self):
+        n = 20
+        df = pd.DataFrame({
+            'lat': RNG.uniform(45, 55, n),
+            'lon': RNG.uniform(5, 15, n),
+            'y': np.where(np.arange(n) == 3, np.inf, RNG.standard_normal(n)),
+        })
+        with pytest.raises(ValueError, match="NaN or inf"):
+            spurtest(df, 'i1', 'y', ['lat', 'lon'], q=5, nrep=100, seed=0)
+
+    # Issue 6: spurhalflife invalid level/q/nrep
+    def test_spurhalflife_rejects_level_gt_1(self):
+        n = 20
+        df = pd.DataFrame({
+            'lat': RNG.uniform(45, 55, n),
+            'lon': RNG.uniform(5, 15, n),
+            'y': RNG.standard_normal(n),
+        })
+        with pytest.raises(ValueError, match="level="):
+            spurhalflife(df, 'y', ['lat', 'lon'], level=1.5, q=5, nrep=100, seed=0)
+
+    def test_spurhalflife_rejects_level_zero(self):
+        n = 20
+        df = pd.DataFrame({
+            'lat': RNG.uniform(45, 55, n),
+            'lon': RNG.uniform(5, 15, n),
+            'y': RNG.standard_normal(n),
+        })
+        with pytest.raises(ValueError, match="level="):
+            spurhalflife(df, 'y', ['lat', 'lon'], level=0.0, q=5, nrep=100, seed=0)
+
+    def test_spurhalflife_rejects_q_zero(self):
+        n = 20
+        df = pd.DataFrame({
+            'lat': RNG.uniform(45, 55, n),
+            'lon': RNG.uniform(5, 15, n),
+            'y': RNG.standard_normal(n),
+        })
+        with pytest.raises(ValueError, match="q="):
+            spurhalflife(df, 'y', ['lat', 'lon'], level=0.95, q=0, nrep=100, seed=0)
+
+    # Issue 7: spurhalflife raises on degenerate (identical) coordinates
+    def test_spurhalflife_raises_on_identical_coords(self):
+        df = pd.DataFrame({
+            'lat': [48.0] * 10,
+            'lon': [11.0] * 10,
+            'y': RNG.standard_normal(10),
+        })
+        with pytest.raises(ValueError, match="identical"):
+            spurhalflife(df, 'y', ['lat', 'lon'], level=0.95, q=5, nrep=100, seed=0)
+
+    # Issue 8: large-N haversine distance matrix raises with informative error
+    def test_get_distance_matrix_raises_for_large_n(self):
+        coords = np.zeros((10_001, 2))
+        with pytest.raises(ValueError, match="10,000"):
+            get_distance_matrix(coords, latlon=True)
+
+    # Issue 8: Euclidean path (no limit) still works for large-ish N
+    def test_get_distance_matrix_euclidean_no_limit(self):
+        coords = np.zeros((10_001, 2))
+        D = get_distance_matrix(coords, latlon=False)
+        assert D.shape == (10_001, 10_001)
 
 
 # ---------------------------------------------------------------------------

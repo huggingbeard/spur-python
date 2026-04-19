@@ -225,6 +225,14 @@ def spurhalflife(df: pd.DataFrame, varname: str, coord_cols: List[str],
     -------
     HalfLifeResult
     """
+    # Validate parameters
+    if not (0 < level < 1):
+        raise ValueError(f"level={level} must be strictly between 0 and 1.")
+    if q < 1:
+        raise ValueError(f"q={q} must be >= 1.")
+    if nrep < 1:
+        raise ValueError(f"nrep={nrep} must be >= 1.")
+
     # Extract data
     coords = df[coord_cols].values
     Y = df[varname].values
@@ -239,6 +247,11 @@ def spurhalflife(df: pd.DataFrame, varname: str, coord_cols: List[str],
     # come out in units of "fraction of max distance". The spatial_persistence
     # function expects a normalized distmat.
     max_dist_norm = distmat_raw.max()
+    if max_dist_norm <= 1e-10:
+        raise ValueError(
+            "All coordinates are identical (or nearly so) — half-life normalization "
+            "requires distinct locations."
+        )
     distmat = distmat_raw / max_dist_norm
 
     # For converting CI to meters, Stata uses:

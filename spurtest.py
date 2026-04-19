@@ -226,26 +226,41 @@ def get_ha_parm_I1(om_ho: np.ndarray, distmat: np.ndarray,
     pow50 = 0.5
     pow_ = 1.0
     ctry = getcbar(0.95, distmat)
+    _MAX_BRACKET = 200
 
     # Step 1: Decrease c until pow < 0.5
+    _iter = 0
     while pow_ > pow50:
         c = ctry
         sigdm_c = get_sigma_dm(distmat, c)
         om_c = R.T @ sigdm_c @ R
         pow_ = getpow_qf(om_ho, om_c, e)
         ctry = ctry / 2
+        _iter += 1
+        if _iter >= _MAX_BRACKET:
+            raise RuntimeError(
+                f"get_ha_parm_I1: step-1 bracketing did not converge in {_MAX_BRACKET} iterations. "
+                "Power may be non-monotone for this dataset."
+            )
 
     c1 = c
 
     # Step 2: Increase c until pow > 0.5
     pow_ = 0.0
     ctry = getcbar(0.01, distmat)
+    _iter = 0
     while pow_ < pow50:
         c = ctry
         sigdm_c = get_sigma_dm(distmat, c)
         om_c = R.T @ sigdm_c @ R
         pow_ = getpow_qf(om_ho, om_c, e)
         ctry = 2 * ctry
+        _iter += 1
+        if _iter >= _MAX_BRACKET:
+            raise RuntimeError(
+                f"get_ha_parm_I1: step-2 bracketing did not converge in {_MAX_BRACKET} iterations. "
+                "Power may be non-monotone for this dataset."
+            )
 
     c2 = c
 
@@ -276,21 +291,34 @@ def get_ha_parm_I0(om_ho: np.ndarray, om_i0: np.ndarray,
     """
     pow_ = 1.0
     gtry = 1.0
+    _MAX_BRACKET = 200
 
     # Step 1: Find lower bound g1
+    _iter = 0
     while pow_ > 0.5:
         g = gtry
         pow_ = getpow_qf(om_ho, om_i0 + g * om_bm, e)
         gtry = g / 2
+        _iter += 1
+        if _iter >= _MAX_BRACKET:
+            raise RuntimeError(
+                f"get_ha_parm_I0: step-1 bracketing did not converge in {_MAX_BRACKET} iterations."
+            )
     g1 = g
 
     # Step 2: Find upper bound g2
     pow_ = 0.0
     gtry = 30.0
+    _iter = 0
     while pow_ < 0.5:
         g = gtry
         pow_ = getpow_qf(om_ho, om_i0 + g * om_bm, e)
         gtry = g * 2
+        _iter += 1
+        if _iter >= _MAX_BRACKET:
+            raise RuntimeError(
+                f"get_ha_parm_I0: step-2 bracketing did not converge in {_MAX_BRACKET} iterations."
+            )
     g2 = g
 
     # Step 3: Bisection
@@ -498,23 +526,36 @@ def get_ha_parm_I1_residual(om_ho: np.ndarray, distmat: np.ndarray,
     pow50 = 0.5
     pow_ = 1.0
     ctry = getcbar(0.95, distmat)
+    _MAX_BRACKET = 200
 
+    _iter = 0
     while pow_ > pow50:
         c = ctry
         sigdm_c = get_sigma_residual(distmat, c, M)
         om_c = R.T @ sigdm_c @ R
         pow_ = getpow_qf(om_ho, om_c, e)
         ctry = ctry / 2
+        _iter += 1
+        if _iter >= _MAX_BRACKET:
+            raise RuntimeError(
+                f"get_ha_parm_I1_residual: step-1 bracketing did not converge in {_MAX_BRACKET} iterations."
+            )
     c1 = c
 
     pow_ = 0.0
     ctry = getcbar(0.01, distmat)
+    _iter = 0
     while pow_ < pow50:
         c = ctry
         sigdm_c = get_sigma_residual(distmat, c, M)
         om_c = R.T @ sigdm_c @ R
         pow_ = getpow_qf(om_ho, om_c, e)
         ctry = 2 * ctry
+        _iter += 1
+        if _iter >= _MAX_BRACKET:
+            raise RuntimeError(
+                f"get_ha_parm_I1_residual: step-2 bracketing did not converge in {_MAX_BRACKET} iterations."
+            )
     c2 = c
 
     ii = 0
@@ -735,6 +776,14 @@ def spurtest(df: pd.DataFrame, test_type: str, varname: str,
     # Extract data
     coords = df[coord_cols].values
     Y = df[varname].values
+
+    if not np.all(np.isfinite(Y)):
+        raise ValueError(
+            f"Variable '{varname}' contains NaN or inf values. "
+            "All values must be finite before running spurtest."
+        )
+    if not np.all(np.isfinite(coords)):
+        raise ValueError("Coordinate columns contain NaN or inf values.")
 
     # Get normalized distance matrix
     distmat = get_distmat_normalized(coords, latlon=latlon)

@@ -65,6 +65,12 @@ def get_distance_matrix(coords: np.ndarray, latlon: bool = True) -> np.ndarray:
     n = coords.shape[0]
 
     if latlon:
+        if n > 10_000:
+            raise ValueError(
+                f"n={n} exceeds the safe limit for full n×n haversine distance computation "
+                f"(limit: 10,000). At this size the matrix requires >{n**2 * 8 // 1_000_000} MB "
+                "and will likely OOM. Use a blocked/sparse implementation for large datasets."
+            )
         # Haversine: vectorized computation for all pairs
         lat = coords[:, 0]
         lon = coords[:, 1]

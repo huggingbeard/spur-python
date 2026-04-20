@@ -13,12 +13,13 @@ functionality that removes spatial unit roots from variables.
 import numpy as np
 import pandas as pd
 from collections.abc import Sequence
+from numpy.typing import ArrayLike
 from typing import Optional
 from .utils import parse_transform_formula, resolve_spur_coords
 
 
 def haversine_distance(
-    lat1: np.ndarray, lon1: np.ndarray, lat2: np.ndarray, lon2: np.ndarray
+    lat1: ArrayLike, lon1: ArrayLike, lat2: ArrayLike, lon2: ArrayLike
 ) -> np.ndarray:
     """
     Compute great-circle distance between points using Haversine formula.
@@ -26,21 +27,26 @@ def haversine_distance(
     Parameters
     ----------
     lat1, lon1 : array-like
-        Latitude and longitude of first point(s) in degrees
+        Latitude and longitude of first point(s) in degrees; accepts scalars or arrays.
     lat2, lon2 : array-like
-        Latitude and longitude of second point(s) in degrees
+        Latitude and longitude of second point(s) in degrees; accepts scalars or arrays.
 
     Returns
     -------
     ndarray
         Distance in meters
     """
+    lat1_arr = np.asarray(lat1, dtype=float)
+    lon1_arr = np.asarray(lon1, dtype=float)
+    lat2_arr = np.asarray(lat2, dtype=float)
+    lon2_arr = np.asarray(lon2, dtype=float)
+
     R = 6371000  # Earth radius in meters
 
-    phi1 = np.radians(lat1)
-    phi2 = np.radians(lat2)
-    dphi = np.radians(lat2 - lat1)
-    dlam = np.radians(lon2 - lon1)
+    phi1 = np.radians(lat1_arr)
+    phi2 = np.radians(lat2_arr)
+    dphi = np.radians(lat2_arr - lat1_arr)
+    dlam = np.radians(lon2_arr - lon1_arr)
 
     a = np.sin(dphi / 2) ** 2 + np.cos(phi1) * np.cos(phi2) * np.sin(dlam / 2) ** 2
     return 2 * R * np.arcsin(np.sqrt(a))

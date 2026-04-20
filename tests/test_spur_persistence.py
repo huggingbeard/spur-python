@@ -1,4 +1,3 @@
-import subprocess
 import textwrap
 from pathlib import Path
 
@@ -9,7 +8,12 @@ import pytest
 from spur import load_chetty_data, standardize
 from spur.spurhalflife import spur_persistence
 from spur.spurtransform import get_distance_matrix
-from tests.utils import STATA, ensure_spur_stata_installed, stata_path
+from tests.utils import (
+    STATA,
+    ensure_spur_stata_installed,
+    execute_stata_command,
+    stata_path,
+)
 
 HALFLIFE_ATOL = 1e-2
 NREP = 100000
@@ -58,15 +62,7 @@ def run_stata_spur_persistence(tmp_path: Path, df: pd.DataFrame) -> tuple[float,
         export delimited using "{stata_path(output_csv)}", replace
         """
     )
-    result = subprocess.run(
-        [STATA, "-q"],
-        cwd=tmp_path,
-        input=script + "\nexit, clear\n",
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr.strip() or result.stdout.strip()
+    execute_stata_command(script, tmp_path)
     row = pd.read_csv(output_csv).iloc[0]
     return float(row["ci_lower"]), float(row["ci_upper"])
 

@@ -1,4 +1,3 @@
-import subprocess
 import textwrap
 from pathlib import Path
 
@@ -8,7 +7,12 @@ import pytest
 
 from spur import load_chetty_data, spurtest_i0resid, standardize
 from tests.config import PARITY_ATOL
-from tests.utils import STATA, ensure_spur_stata_installed, stata_path
+from tests.utils import (
+    STATA,
+    ensure_spur_stata_installed,
+    execute_stata_command,
+    stata_path,
+)
 
 NREP = 100000
 
@@ -59,15 +63,7 @@ def run_stata_spurtest_i0resid(
         export delimited using "{stata_path(output_csv)}", replace
         """
     )
-    result = subprocess.run(
-        [STATA, "-q"],
-        cwd=tmp_path,
-        input=script + "\nexit, clear\n",
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    assert result.returncode == 0, result.stderr.strip() or result.stdout.strip()
+    execute_stata_command(script, tmp_path)
     row = pd.read_csv(output_csv).iloc[0]
     return float(row["teststat"]), float(row["ha"])
 

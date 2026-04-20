@@ -65,16 +65,22 @@ def run_stata_transform(
 
 
 @pytest.mark.parametrize(
-    "method,kwargs", [("nn", {}), ("iso", {"radius": 1_000_000}), ("lbmgls", {})]
+    "method,radius", [("nn", None), ("iso", 1_000_000.0), ("lbmgls", None)]
 )
 def test_transform_maps_constant_to_zero(
     grid_coords: np.ndarray,
     method: str,
-    kwargs: dict[str, float],
+    radius: float | None,
 ) -> None:
     constant = np.ones(len(grid_coords)) * 3.14
 
-    result = transform(constant, grid_coords, method=method, latlon=True, **kwargs)
+    result = transform(
+        constant,
+        grid_coords,
+        method=method,
+        radius=radius,
+        latlon=True,
+    )
 
     npt.assert_allclose(result, 0.0, atol=ATOL, rtol=RTOL)
 

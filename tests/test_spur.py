@@ -1,3 +1,4 @@
+from typing import Any
 from types import SimpleNamespace
 
 import pandas as pd
@@ -27,7 +28,7 @@ def test_spur_uses_levels_branch_at_10_percent(monkeypatch) -> None:
         lambda *args, **kwargs: SimpleNamespace(pvalue=0.09),
     )
 
-    calls: dict[str, object] = {}
+    calls: dict[str, Any] = {}
 
     def fake_scpc(model, data, **kwargs):
         calls["formula"] = model.model.formula
@@ -77,7 +78,7 @@ def test_spur_uses_transformed_branch_otherwise(monkeypatch) -> None:
         lambda *args, **kwargs: df.assign(h_y=df["y"], h_x=df["x"]),
     )
 
-    calls: dict[str, object] = {}
+    calls: dict[str, Any] = {}
 
     def fake_scpc(model, data, **kwargs):
         calls["formula"] = model.model.formula

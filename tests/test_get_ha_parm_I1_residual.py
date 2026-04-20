@@ -6,15 +6,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from spur import (
-    demean_matrix,
+from spur import load_chetty_data, standardize
+from spur.spurtest import (
     get_R,
     get_distmat_normalized,
     get_ha_parm_I1_residual,
     get_sigma_residual,
     getcbar,
-    load_chetty_data,
-    standardize,
 )
 from tests.config import PARITY_ATOL
 from tests.utils import STATA, ensure_spur_stata_installed, stata_path

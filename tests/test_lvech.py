@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.testing as npt
 
-from spur import lvech
+from spur.spurtest import lvech
 
 
 def test_lvech_extracts_strict_lower_triangle_in_row_order() -> None:

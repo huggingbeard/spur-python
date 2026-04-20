@@ -6,12 +6,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from spur import (
-    get_distance_matrix,
-    load_chetty_data,
-    spatial_persistence,
-    standardize,
-)
+from spur import load_chetty_data, standardize
+from spur.spurhalflife import spatial_persistence
+from spur.spurtransform import get_distance_matrix
 from tests.utils import STATA, ensure_spur_stata_installed, stata_path
 
 HALFLIFE_ATOL = 1e-2

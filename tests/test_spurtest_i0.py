@@ -6,12 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from spur import (
-    get_distmat_normalized,
-    load_chetty_data,
-    spatial_i0_test,
-    standardize,
-)
+from spur import load_chetty_data, spurtest_i0, standardize
 from tests.config import PARITY_ATOL
 from tests.utils import STATA, ensure_spur_stata_installed, stata_path
 
@@ -26,12 +21,12 @@ def chetty_df() -> pd.DataFrame:
     return standardize(df, ["am", "fracblack"])
 
 
-def run_stata_spatial_i0_test(tmp_path: Path, df: pd.DataFrame) -> tuple[float, float]:
+def run_stata_spurtest_i0(tmp_path: Path, df: pd.DataFrame) -> tuple[float, float]:
     stata_root = ensure_spur_stata_installed()
     plus = stata_root / "plus"
     personal = stata_root / "personal"
-    input_csv = tmp_path / "spatial_i0_input.csv"
-    output_csv = tmp_path / "spatial_i0_output.csv"
+    input_csv = tmp_path / "spurtest_i0_input.csv"
+    output_csv = tmp_path / "spurtest_i0_output.csv"
 
     df.to_csv(input_csv, index=False)
 
@@ -74,14 +69,17 @@ def run_stata_spatial_i0_test(tmp_path: Path, df: pd.DataFrame) -> tuple[float, 
     return float(row["teststat"]), float(row["ha"])
 
 
-def test_spatial_i0_test_returns_valid_result() -> None:
+def test_spurtest_i0_returns_valid_result() -> None:
     rng = np.random.default_rng(42)
-    coords = np.column_stack([rng.uniform(45, 55, 30), rng.uniform(5, 15, 30)])
-    y = rng.standard_normal(30)
-    distmat = get_distmat_normalized(coords, latlon=True)
-    emat = rng.standard_normal((10, 10_000))
+    df = pd.DataFrame(
+        {
+            "lat": rng.uniform(45, 55, 30),
+            "lon": rng.uniform(5, 15, 30),
+            "y": rng.standard_normal(30),
+        }
+    )
 
-    result = spatial_i0_test(y, distmat, emat)
+    result = spurtest_i0("y", df, lon="lon", lat="lat", q=10, nrep=10_000, seed=42)
 
     assert np.isfinite(result.LR)
     assert 0.0 <= result.pvalue <= 1.0
@@ -90,17 +88,20 @@ def test_spatial_i0_test_returns_valid_result() -> None:
 
 
 @pytest.mark.skipif(STATA is None, reason="stata-mp not installed")
-def test_spatial_i0_test_matches_stata(
+def test_spurtest_i0_matches_stata(
     tmp_path: Path,
     chetty_df: pd.DataFrame,
 ) -> None:
-    coords = chetty_df[["lat", "lon"]].to_numpy()
-    y = chetty_df["am"].to_numpy()
-    distmat = get_distmat_normalized(coords, latlon=True)
-    emat = np.random.default_rng(42).standard_normal((10, NREP))
-
-    py_value = spatial_i0_test(y, distmat, emat)
-    st_LR, st_ha = run_stata_spatial_i0_test(tmp_path, chetty_df)
+    py_value = spurtest_i0(
+        "am",
+        chetty_df,
+        lon="lon",
+        lat="lat",
+        q=10,
+        nrep=NREP,
+        seed=42,
+    )
+    st_LR, st_ha = run_stata_spurtest_i0(tmp_path, chetty_df)
 
     assert py_value.LR == pytest.approx(st_LR, abs=PARITY_ATOL)
     assert py_value.ha_param == pytest.approx(st_ha, abs=PARITY_ATOL)

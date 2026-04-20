@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.testing as npt
 
-from spur import get_sigma_residual
+from spur.spurtest import get_sigma_residual
 from tests.config import ATOL, RTOL
 
 

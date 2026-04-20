@@ -1,6 +1,6 @@
 import numpy as np
 
-from spur import get_transformation_stats
+from spur.spurtransform import get_transformation_stats
 
 
 def test_get_transformation_stats_reports_core_distance_summary() -> None:

@@ -6,8 +6,9 @@ import numpy.testing as npt
 import pandas as pd
 import pytest
 
-from spur import spurtransform, transform
-from tests.config import ATOL, PARITY_ATOL, PARITY_RTOL, RTOL
+from spur import spurtransform
+from spur.spurtransform import transform
+from tests.config import ATOL, PARITY_ATOL, PARITY_RTOL
 from tests.utils import (
     STATA,
     ensure_spur_stata_installed,
@@ -65,7 +66,14 @@ def test_spurtransform_adds_columns_without_mutating_inputs(
 ) -> None:
     y_before = sample_df["y"].copy()
 
-    out = spurtransform(sample_df, ["y", "x"], ["lat", "lon"], method="nn", prefix="nn_")
+    out = spurtransform(
+        "y ~ x",
+        sample_df,
+        lon="lon",
+        lat="lat",
+        transformation="nn",
+        prefix="nn_",
+    )
 
     assert "nn_y" in out.columns
     assert "nn_x" in out.columns
@@ -83,18 +91,25 @@ def test_spurtransform_rejects_missing_coordinates() -> None:
     )
 
     with pytest.raises(ValueError, match="missing"):
-        spurtransform(df, "y", ["lat", "lon"], method="nn")
+        spurtransform("y ~ 1", df, lon="lon", lat="lat", transformation="nn")
 
 
 def test_spurtransform_rejects_missing_variable(sample_df: pd.DataFrame) -> None:
     with pytest.raises(ValueError, match="not found"):
-        spurtransform(sample_df, "missing", ["lat", "lon"], method="nn")
+        spurtransform("missing ~ 1", sample_df, lon="lon", lat="lat", transformation="nn")
 
 
 def test_spurtransform_matches_direct_transform(
     sample_df: pd.DataFrame,
 ) -> None:
-    out = spurtransform(sample_df, "y", ["lat", "lon"], method="nn", prefix="nn_")
+    out = spurtransform(
+        "y ~ 1",
+        sample_df,
+        lon="lon",
+        lat="lat",
+        transformation="nn",
+        prefix="nn_",
+    )
     coords = sample_df[["lat", "lon"]].to_numpy()
     direct = transform(sample_df["y"].to_numpy(), coords, method="nn", latlon=True)
 
@@ -112,11 +127,10 @@ def test_spurtransform_cluster_demeans_within_groups() -> None:
     )
 
     out = spurtransform(
+        "y ~ 1",
         df,
-        "y",
-        ["lat", "lon"],
-        method="cluster",
-        cluster_col="grp",
+        transformation="cluster",
+        clustvar="grp",
         prefix="cl_",
     )
 
@@ -140,11 +154,10 @@ def test_spurtransform_rejects_nullable_string_clusters_with_missing() -> None:
 
     with pytest.raises(ValueError, match="missing"):
         spurtransform(
+            "y ~ 1",
             df,
-            "y",
-            ["lat", "lon"],
-            method="cluster",
-            cluster_col="province",
+            transformation="cluster",
+            clustvar="province",
         )
 
 
@@ -162,11 +175,10 @@ def test_spurtransform_accepts_string_cluster_labels() -> None:
     )
 
     out = spurtransform(
+        "y ~ 1",
         df,
-        "y",
-        ["lat", "lon"],
-        method="cluster",
-        cluster_col="province",
+        transformation="cluster",
+        clustvar="province",
         prefix="cl_",
     )
 
@@ -183,12 +195,33 @@ def test_spurtransform_cluster_works_without_coordinate_columns_present() -> Non
         }
     )
 
-    out = spurtransform(df, "y", ["lat", "lon"], method="cluster", cluster_col="grp")
+    out = spurtransform("y ~ 1", df, transformation="cluster", clustvar="grp")
 
     for group in ["A", "B"]:
-        assert out.loc[df["grp"] == group, "d_y"].sum() == pytest.approx(
+        assert out.loc[df["grp"] == group, "h_y"].sum() == pytest.approx(
             0.0, abs=ATOL
         )
+
+
+def test_spurtransform_accepts_euclidean_coordinates() -> None:
+    df = pd.DataFrame(
+        {
+            "xcoord": [0.0, 1.0, 2.0, 3.0],
+            "ycoord": [0.0, 1.0, 0.0, 1.0],
+            "y": [1.0, 2.0, 3.0, 4.0],
+        }
+    )
+
+    out = spurtransform(
+        "y ~ 1",
+        df,
+        coords_euclidean=["xcoord", "ycoord"],
+        transformation="nn",
+        prefix="e_",
+    )
+
+    assert "e_y" in out.columns
+    assert len(out) == len(df)
 
 
 @pytest.mark.skipif(STATA is None, reason="stata-mp not installed")
@@ -197,10 +230,11 @@ def test_spurtransform_matches_stata(
     sample_df: pd.DataFrame,
 ) -> None:
     py_value = spurtransform(
+        "y ~ x",
         sample_df,
-        ["y", "x"],
-        ["lat", "lon"],
-        method="lbmgls",
+        lon="lon",
+        lat="lat",
+        transformation="lbmgls",
         prefix="d_",
     )
     st_value = run_stata_spurtransform(tmp_path, sample_df)

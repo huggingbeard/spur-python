@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from spur import getcbar, lvech
+from spur.spurtest import getcbar, lvech
 
 
 def test_getcbar_matches_target_average_correlation() -> None:

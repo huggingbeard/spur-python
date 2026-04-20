@@ -70,16 +70,17 @@ def run_stata_spurhalflife(tmp_path: Path, df: pd.DataFrame) -> pd.Series:
 def test_spurhalflife_validates_level_and_summary(chetty_df: pd.DataFrame) -> None:
     with pytest.raises(ValueError, match="level="):
         spurhalflife(
-            chetty_df,
             "am",
-            ["lat", "lon"],
-            level=1.5,
+            chetty_df,
+            lon="lon",
+            lat="lat",
+            level=150.0,
             q=5,
             nrep=100,
             seed=0,
         )
 
-    result = spurhalflife(chetty_df, "am", ["lat", "lon"], q=5, nrep=200, seed=42)
+    result = spurhalflife("am", chetty_df, lon="lon", lat="lat", q=5, nrep=200, seed=42)
 
     assert isinstance(result, HalfLifeResult)
     assert result.ci_lower >= 0 or np.isnan(result.ci_lower)
@@ -98,10 +99,10 @@ def test_spurhalflife_rejects_more_invalid_parameters() -> None:
     )
 
     with pytest.raises(ValueError, match="level="):
-        spurhalflife(df, "y", ["lat", "lon"], level=0.0, q=5, nrep=100, seed=0)
+        spurhalflife("y", df, lon="lon", lat="lat", level=0.0, q=5, nrep=100, seed=0)
 
     with pytest.raises(ValueError, match="q="):
-        spurhalflife(df, "y", ["lat", "lon"], level=0.95, q=0, nrep=100, seed=0)
+        spurhalflife("y", df, lon="lon", lat="lat", level=95, q=0, nrep=100, seed=0)
 
 
 def test_spurhalflife_rejects_identical_coordinates() -> None:
@@ -115,7 +116,7 @@ def test_spurhalflife_rejects_identical_coordinates() -> None:
     )
 
     with pytest.raises(ValueError, match="identical"):
-        spurhalflife(df, "y", ["lat", "lon"], level=0.95, q=5, nrep=100, seed=0)
+        spurhalflife("y", df, lon="lon", lat="lat", level=95, q=5, nrep=100, seed=0)
 
 
 @pytest.mark.skipif(STATA is None, reason="stata-mp not installed")
@@ -124,13 +125,13 @@ def test_spurhalflife_matches_stata(
     chetty_df: pd.DataFrame,
 ) -> None:
     py_value = spurhalflife(
-        chetty_df,
         "am",
-        ["lat", "lon"],
+        chetty_df,
+        lon="lon",
+        lat="lat",
         q=15,
         nrep=NREP,
-        level=0.95,
-        latlon=True,
+        level=95,
         normdist=False,
         seed=42,
     )

@@ -1,347 +1,42 @@
-"""
-SPUR Test: Diagnostic tests for spatial unit roots.
-
-Implements four tests from Muller-Watson (2024):
-- i1: Test I(1) null (unit root) on a single variable
-- i0: Test I(0) null (stationarity) on a single variable
-- i1resid: Test I(1) null on regression residuals
-- i0resid: Test I(0) null on regression residuals
-
-Reference: Becker, Boll, Voth (2025) SPUR Stata Package
-"""
-
+from __future__ import annotations
+from collections.abc import Sequence
+from typing import Literal, Optional
 import numpy as np
 import pandas as pd
-from collections.abc import Sequence
-from typing import Literal
-from dataclasses import dataclass
-from spur import get_distance_matrix, get_sigma_lbm, demean_matrix
-from .utils import parse_residual_formula, parse_single_var_formula, resolve_spur_coords
+from scpc import scpc
+import statsmodels.formula.api as smf
 
-
-@dataclass
-class SpurTestResult:
-    """Container for spurtest results."""
-
-    test_type: str  # 'i1', 'i0', 'i1resid', 'i0resid'
-    LR: float  # Likelihood ratio test statistic
-    pvalue: float  # P-value
-    cv: np.ndarray  # Critical values at 1%, 5%, 10%
-    ha_param: float  # Alternative hypothesis parameter
-
-    def summary(self) -> str:
-        """Format test results for display."""
-        stat_name = "LFUR" if self.test_type.startswith("i1") else "LFST"
-        lines = [
-            f"Spatial {self.test_type.upper()} Test Results",
-            "-" * 45,
-            f"Test Statistic ({stat_name}):  {self.LR:9.4f}",
-            f"P-value:                {self.pvalue:9.4f}",
-            f"CV 1%:                  {self.cv[0]:9.4f}",
-            f"CV 5%:                  {self.cv[1]:9.4f}",
-            f"CV 10%:                 {self.cv[2]:9.4f}",
-            "-" * 45,
-        ]
-        return "\n".join(lines)
-
-
-def normalized_distmat(coords: np.ndarray, latlon: bool = True) -> np.ndarray:
-    """Get distance matrix normalized so max distance = 1."""
-    distmat = get_distance_matrix(coords, latlon=latlon)
-    return distmat / distmat.max()
-
-
-def get_r(sigma: np.ndarray, qmax: int) -> np.ndarray:
-    """
-    Get the top qmax eigenvectors of covariance matrix (sorted by eigenvalue desc).
-
-    Parameters
-    ----------
-    sigma : ndarray (n, n)
-        Symmetric covariance matrix
-    qmax : int
-        Number of top eigenvectors to return
-
-    Returns
-    -------
-    ndarray (n, qmax)
-        Matrix of top eigenvectors
-    """
-    eigenvalues, eigenvectors = np.linalg.eigh(sigma)
-    # Sort descending
-    idx = np.argsort(eigenvalues)[::-1]
-    eigenvectors = eigenvectors[:, idx]
-    return eigenvectors[:, :qmax]
-
-
-def get_sigma_dm(distmat: np.ndarray, c: float) -> np.ndarray:
-    """
-    Compute demeaned exponential covariance matrix.
-
-    sigma(i,j) = exp(-c * distmat(i,j)), then double-demean.
-    """
-    sigma = np.exp(-c * distmat)
-    return demean_matrix(sigma)
-
-
-def lvech(S: np.ndarray) -> np.ndarray:
-    """Extract lower triangular part (below diagonal) as vector."""
-    n = S.shape[0]
-    # Get indices below diagonal
-    i, j = np.tril_indices(n, k=-1)
-    return S[i, j]
-
-
-def get_cbar(rhobar: float, distmat: np.ndarray) -> float:
-    """
-    Bisection method to find c such that mean(exp(-c*d)) = rhobar.
-
-    Parameters
-    ----------
-    rhobar : float
-        Target average correlation
-    distmat : ndarray
-        Distance matrix
-
-    Returns
-    -------
-    float
-        c value
-    """
-    vd = lvech(distmat)
-
-    # Initial bounds
-    c0 = 10.0
-    c1 = 10.0
-
-    # Find c0 such that v(c0) > rhobar
-    i1 = False
-    jj = 0
-    while not i1:
-        v = np.mean(np.exp(-c0 * vd))
-        i1 = v > rhobar
-        if not i1:
-            c1 = c0
-            c0 = c0 / 2
-            jj += 1
-        if jj > 500:
-            raise ValueError("rhobar too large")
-
-    # Find c1 such that v(c1) < rhobar
-    i1 = False
-    jj = 0
-    while not i1:
-        v = np.mean(np.exp(-c1 * vd))
-        i1 = v < rhobar
-        if not i1:
-            c0 = c1
-            c1 = 2 * c1
-            jj += 1
-        if c1 > 10000:
-            i1 = True
-        if jj > 500:
-            raise ValueError("rhobar too small")
-
-    # Bisection (geometric mean)
-    while (c1 - c0) > 0.001:
-        cm = np.sqrt(c0 * c1)
-        v = np.mean(np.exp(-cm * vd))
-        if v < rhobar:
-            c1 = cm
-        else:
-            c0 = cm
-
-    return np.sqrt(c0 * c1)
-
-
-def cholesky_upper(M: np.ndarray) -> np.ndarray:
-    """
-    Get upper triangular Cholesky factor.
-
-    NumPy returns a lower-triangular factor, while R `chol()` already returns
-    the upper-triangular factor used in the SPUR translations. This helper
-    bridges that library convention difference in Python.
-    """
-    # numpy returns lower by default, transpose for upper
-    L = np.linalg.cholesky(M)
-    return L.T
-
-
-def get_pow_qf(om0: np.ndarray, om1: np.ndarray, e: np.ndarray) -> float:
-    """
-    Compute power of test via quadratic forms.
-
-    Parameters
-    ----------
-    om0 : ndarray (q, q)
-        Null covariance matrix
-    om1 : ndarray (q, q)
-        Alternative covariance matrix
-    e : ndarray (q, nrep)
-        Random Monte Carlo draws
-
-    Returns
-    -------
-    float
-        Power (probability of rejecting H0 at 5% level)
-    """
-    om0i = np.linalg.inv(om0)
-    om1i = np.linalg.inv(om1)
-
-    # Upper triangular Cholesky factors
-    ch_om0 = cholesky_upper(om0)
-    ch_om1 = cholesky_upper(om1)
-    ch_om0i = cholesky_upper(om0i)
-    ch_om1i = cholesky_upper(om1i)
-
-    # Transform matrices (matching Stata: ch_om1i * ch_om0')
-    # Note: ch_om0' in Stata means transpose of upper-tri = lower-tri = L
-    # But cholesky(om0)' is upper, so cholesky(om0)'' = lower (the L)
-    # Actually looking more carefully at Stata code:
-    # ch_om0 = cholesky(om0)'  -> upper triangular
-    # ho = ch_om1i * ch_om0'   -> ch_om1i @ (upper)' = ch_om1i @ lower
-    # So ch_om0' in Stata expression = transpose of upper = lower triangular = numpy's L
-    ho = ch_om1i @ ch_om0.T  # DG: was re-computed down here
-    ha = ch_om0i @ ch_om1.T  # DG: was re-computed down here
-
-    # Quadratic forms
-    qe = np.sum(e**2, axis=0)  # sum of squares of each column
-    ya_o = ho @ e
-    yo_a = ha @ e
-    qa_o = np.sum(ya_o**2, axis=0)
-    qo_a = np.sum(yo_a**2, axis=0)
-
-    # Likelihood ratios
-    lr_o = qe / qa_o
-    lr_a = qo_a / qe
-
-    # 95th percentile of lr_o
-    cv = np.quantile(lr_o, 0.95)
-    pow_ = np.mean(lr_a > cv)
-
-    return pow_
-
-
-def get_ha_param_i1(
-    om_ho: np.ndarray, distmat: np.ndarray, R: np.ndarray, e: np.ndarray
-) -> float:
-    """
-    Find alternative hypothesis parameter c that yields ~50% power for I(1) test.
-    """
-    pow50 = 0.5
-    pow_ = 1.0
-    ctry = get_cbar(0.95, distmat)
-    _MAX_BRACKET = 200
-
-    # Step 1: Decrease c until pow < 0.5
-    _iter = 0
-    while pow_ > pow50:
-        c = ctry
-        sigdm_c = get_sigma_dm(distmat, c)
-        om_c = R.T @ sigdm_c @ R
-        pow_ = get_pow_qf(om_ho, om_c, e)
-        ctry = ctry / 2
-        _iter += 1
-        if _iter >= _MAX_BRACKET:
-            raise RuntimeError(
-                f"get_ha_param_i1: step-1 bracketing did not converge in {_MAX_BRACKET} iterations. "
-                "Power may be non-monotone for this dataset."
-            )
-
-    c1 = c
-
-    # Step 2: Increase c until pow > 0.5
-    pow_ = 0.0
-    ctry = get_cbar(0.01, distmat)
-    _iter = 0
-    while pow_ < pow50:
-        c = ctry
-        sigdm_c = get_sigma_dm(distmat, c)
-        om_c = R.T @ sigdm_c @ R
-        pow_ = get_pow_qf(om_ho, om_c, e)
-        ctry = 2 * ctry
-        _iter += 1
-        if _iter >= _MAX_BRACKET:
-            raise RuntimeError(
-                f"get_ha_param_i1: step-2 bracketing did not converge in {_MAX_BRACKET} iterations. "
-                "Power may be non-monotone for this dataset."
-            )
-
-    c2 = c
-
-    # Step 3: Bisection
-    ii = 0
-    while abs(pow_ - pow50) > 0.01:
-        c = (c1 + c2) / 2
-        sigdm_c = get_sigma_dm(distmat, c)
-        om_c = R.T @ sigdm_c @ R
-        pow_ = get_pow_qf(om_ho, om_c, e)
-
-        if pow_ > pow50:
-            c2 = c
-        else:
-            c1 = c
-
-        ii += 1
-        if ii > 20:
-            break
-
-    return c
-
-
-def get_ha_param_i0(
-    om_ho: np.ndarray, om_i0: np.ndarray, om_bm: np.ndarray, e: np.ndarray
-) -> float:
-    """
-    Find alternative hypothesis parameter g that yields ~50% power for I(0) test.
-    """
-    pow_ = 1.0
-    gtry = 1.0
-    _MAX_BRACKET = 200
-
-    # Step 1: Find lower bound g1
-    _iter = 0
-    while pow_ > 0.5:
-        g = gtry
-        pow_ = get_pow_qf(om_ho, om_i0 + g * om_bm, e)
-        gtry = g / 2
-        _iter += 1
-        if _iter >= _MAX_BRACKET:
-            raise RuntimeError(
-                f"get_ha_param_i0: step-1 bracketing did not converge in {_MAX_BRACKET} iterations."
-            )
-    g1 = g
-
-    # Step 2: Find upper bound g2
-    pow_ = 0.0
-    gtry = 30.0
-    _iter = 0
-    while pow_ < 0.5:
-        g = gtry
-        pow_ = get_pow_qf(om_ho, om_i0 + g * om_bm, e)
-        gtry = g * 2
-        _iter += 1
-        if _iter >= _MAX_BRACKET:
-            raise RuntimeError(
-                f"get_ha_param_i0: step-2 bracketing did not converge in {_MAX_BRACKET} iterations."
-            )
-    g2 = g
-
-    # Step 3: Bisection
-    ii = 1  # DG: changed from 0 for consistency with stata
-    # https://github.com/pdavidboll/SPUR/blob/main/mata/get_ha_parm_I0.mata#L33
-    while abs(pow_ - 0.5) > 0.01:
-        g = (g1 + g2) / 2
-        pow_ = get_pow_qf(om_ho, om_i0 + g * om_bm, e)
-        if pow_ > 0.5:
-            g2 = g
-        else:
-            g1 = g
-        ii += 1
-        if ii > 20:
-            break
-
-    return g
+from .types import HalfLifeResult, SpurResult, SpurTestResult
+from .utils.dist import (
+    get_cbar,
+    get_distance_matrix,
+    normalized_distmat,
+    resolve_spur_coords,
+)
+from .utils.formula import (
+    parse_residual_formula,
+    parse_single_var_formula,
+    parse_transform_formula,
+    rewrite_formula_with_prefix,
+)
+from .utils.inference import (
+    get_ha_param_i0,
+    get_ha_param_i1,
+    get_ha_param_i1_residual,
+    spur_persistence,
+)
+from .utils.matrix import (
+    cholesky_upper,
+    cluster_matrix,
+    demean_matrix,
+    get_r,
+    get_sigma_dm,
+    get_sigma_lbm,
+    get_sigma_residual,
+    iso_matrix,
+    lbmgls_matrix,
+    nn_matrix,
+)
 
 
 def spurtest_i1(
@@ -421,30 +116,21 @@ def spurtest_i1(
 
     emat = np.random.default_rng(seed).standard_normal((q, nrep))
     q = emat.shape[0]
-    # n = distmat.shape[0] # DG unused
 
-    # BM covariance matrix (demeaned)
     sigdm_bm = demean_matrix(get_sigma_lbm(distmat))
-
-    # Eigenvectors for low-frequency weights
     R = get_r(sigdm_bm, q)
-
-    # Null hypothesis covariance
     om_ho = R.T @ sigdm_bm @ R
 
-    # Alternative hypothesis parameter (~50% power)
     ha_parm = get_ha_param_i1(om_ho, distmat, R, emat)
     sigdm_ha = get_sigma_dm(distmat, ha_parm)
     om_ha = R.T @ sigdm_ha @ R
 
-    # Simulate LR distribution under H0
     ch_om_ho = cholesky_upper(om_ho)
     omi_ho = np.linalg.inv(om_ho)
     omi_ha = np.linalg.inv(om_ha)
     ch_omi_ho = cholesky_upper(omi_ho)
     ch_omi_ha = cholesky_upper(omi_ha)
 
-    # Draws under H0: y_ho has distribution om_ho
     y_ho = ch_om_ho.T @ emat
     y_ho_ho = ch_omi_ho @ y_ho
     y_ho_ha = ch_omi_ha @ y_ho
@@ -452,11 +138,9 @@ def spurtest_i1(
     q_ho_ha = np.sum(y_ho_ha**2, axis=0)
     lr_ho = q_ho_ho / q_ho_ha
 
-    # Critical values
     sz_vec = np.array([0.01, 0.05, 0.10])
     cv_vec = np.quantile(lr_ho, 1 - sz_vec)
 
-    # Test statistic for data
     X = Y - np.mean(Y)
     P = R.T @ X
     LR = float((P.T @ omi_ho @ P) / (P.T @ omi_ha @ P))
@@ -544,15 +228,10 @@ def spurtest_i0(
 
     emat = np.random.default_rng(seed).standard_normal((q, nrep))
     q = emat.shape[0]
-    # n = distmat.shape[0] # DG unused
 
-    # BM covariance matrix (demeaned)
     sigdm_bm = demean_matrix(get_sigma_lbm(distmat))
-
-    # Eigenvectors
     R = get_r(sigdm_bm, q)
 
-    # om_ho for rhobar = 0.001 (near-stationary)
     rho = 0.001
     c = get_cbar(rho, distmat)
     sigdm_rho = get_sigma_dm(distmat, c)
@@ -560,17 +239,14 @@ def spurtest_i0(
     om_rho = R.T @ sigdm_rho @ R
     om_bm = R.T @ sigdm_bm @ R
 
-    # Find alternative parameter
     om_i0 = om_rho
     om_ho = om_rho
     ha_parm = get_ha_param_i0(om_ho, om_i0, om_bm, emat)
     om_ha = om_i0 + ha_parm * om_bm
 
-    # Cholesky factors
     ch_omi_ho = cholesky_upper(np.linalg.inv(om_ho))
     ch_omi_ha = cholesky_upper(np.linalg.inv(om_ha))
 
-    # LR statistic for data
     X = Y - np.mean(Y)
     P = R.T @ X
     y_P_ho = ch_omi_ho @ P
@@ -579,7 +255,6 @@ def spurtest_i0(
     q_P_ha = np.sum(y_P_ha**2)
     LR = float(q_P_ho / q_P_ha)
 
-    # Grid over rho for least-favorable p-value
     rho_min = 0.0001
     rho_max = 0.03
     n_rho = 30
@@ -611,83 +286,12 @@ def spurtest_i0(
         cvalue_mat[ir, :] = np.quantile(lr_ho, 1 - sz_vec)
         pvalue_vec[ir] = np.mean(lr_ho > LR)
 
-    # Least-favorable p-value and critical values (max over grid)
     cvalue = cvalue_mat.max(axis=0)
     pvalue = float(pvalue_vec.max())
 
     return SpurTestResult(
         test_type="i0", LR=LR, pvalue=pvalue, cv=cvalue, ha_param=ha_parm
     )
-
-
-def get_sigma_residual(distmat: np.ndarray, c: float, M: np.ndarray) -> np.ndarray:
-    """
-    Compute residualized covariance matrix: M @ exp(-c * distmat) @ M.T
-
-    Used for I(1) and I(0) residual tests. The projection matrix M already
-    accounts for the regressors, so we project the spatial covariance.
-    """
-    sigma = np.exp(-c * distmat)
-    return M @ sigma @ M.T
-
-
-def get_ha_param_i1_residual(
-    om_ho: np.ndarray, distmat: np.ndarray, R: np.ndarray, e: np.ndarray, M: np.ndarray
-) -> float:
-    """
-    Find alternative parameter c yielding ~50% power for I(1) residual test.
-    Same structure as get_ha_param_i1 but uses get_sigma_residual.
-    """
-    pow50 = 0.5
-    pow_ = 1.0
-    ctry = get_cbar(0.95, distmat)
-    _MAX_BRACKET = 200
-
-    _iter = 0
-    while pow_ > pow50:
-        c = ctry
-        sigdm_c = get_sigma_residual(distmat, c, M)
-        om_c = R.T @ sigdm_c @ R
-        pow_ = get_pow_qf(om_ho, om_c, e)
-        ctry = ctry / 2
-        _iter += 1
-        if _iter >= _MAX_BRACKET:
-            raise RuntimeError(
-                f"get_ha_param_i1_residual: step-1 bracketing did not converge in {_MAX_BRACKET} iterations."
-            )
-    c1 = c
-
-    pow_ = 0.0
-    ctry = get_cbar(0.01, distmat)
-    _iter = 0
-    while pow_ < pow50:
-        c = ctry
-        sigdm_c = get_sigma_residual(distmat, c, M)
-        om_c = R.T @ sigdm_c @ R
-        pow_ = get_pow_qf(om_ho, om_c, e)
-        ctry = 2 * ctry
-        _iter += 1
-        if _iter >= _MAX_BRACKET:
-            raise RuntimeError(
-                f"get_ha_param_i1_residual: step-2 bracketing did not converge in {_MAX_BRACKET} iterations."
-            )
-    c2 = c
-
-    ii = 0
-    while abs(pow_ - pow50) > 0.01:
-        c = (c1 + c2) / 2
-        sigdm_c = get_sigma_residual(distmat, c, M)
-        om_c = R.T @ sigdm_c @ R
-        pow_ = get_pow_qf(om_ho, om_c, e)
-        if pow_ > pow50:
-            c2 = c
-        else:
-            c1 = c
-        ii += 1
-        if ii > 20:
-            break
-
-    return c
 
 
 def spurtest_i1resid(
@@ -771,7 +375,6 @@ def spurtest_i1resid(
     q = emat.shape[0]
     n = distmat.shape[0]
 
-    # Projection matrix (annihilator)
     if np.linalg.matrix_rank(X_in) < X_in.shape[1]:
         raise ValueError(
             "Regressor matrix X is rank-deficient (collinear regressors or dummy trap). "
@@ -780,21 +383,17 @@ def spurtest_i1resid(
     XtX_inv = np.linalg.inv(X_in.T @ X_in)
     M = np.eye(n) - X_in @ XtX_inv @ X_in.T
 
-    # BM covariance matrix (approximation for demeaned value)
     rho_bm = 0.999
     c_bm = get_cbar(rho_bm, distmat)
     sigdm_bm = get_sigma_residual(distmat, c_bm, M)
 
-    # Eigenvectors
     R = get_r(sigdm_bm, q)
     om_ho = R.T @ sigdm_bm @ R
 
-    # Alternative parameter
     ha_parm = get_ha_param_i1_residual(om_ho, distmat, R, emat, M)
     sigdm_ha = get_sigma_residual(distmat, ha_parm, M)
     om_ha = R.T @ sigdm_ha @ R
 
-    # Simulate LR distribution
     ch_om_ho = cholesky_upper(om_ho)
     omi_ho = np.linalg.inv(om_ho)
     omi_ha = np.linalg.inv(om_ha)
@@ -808,11 +407,9 @@ def spurtest_i1resid(
     q_ho_ha = np.sum(y_ho_ha**2, axis=0)
     lr_ho = q_ho_ho / q_ho_ha
 
-    # Critical values
     sz_vec = np.array([0.01, 0.05, 0.10])
     cv_vec = np.quantile(lr_ho, 1 - sz_vec)
 
-    # Test statistic: use Y - mean(Y), not OLS residuals
     X = Y - np.mean(Y)
     P = R.T @ X
     LR = float((P.T @ omi_ho @ P) / (P.T @ omi_ha @ P))
@@ -904,7 +501,6 @@ def spurtest_i0resid(
     q = emat.shape[0]
     n = distmat.shape[0]
 
-    # Projection matrix
     if np.linalg.matrix_rank(X_in) < X_in.shape[1]:
         raise ValueError(
             "Regressor matrix X is rank-deficient (collinear regressors or dummy trap). "
@@ -913,14 +509,12 @@ def spurtest_i0resid(
     XtX_inv = np.linalg.inv(X_in.T @ X_in)
     M = np.eye(n) - X_in @ XtX_inv @ X_in.T
 
-    # BM covariance using c_bm from rho_bm=0.999
     rho_bm = 0.999
     c_bm = get_cbar(rho_bm, distmat)
     sigdm_bm = get_sigma_residual(distmat, c_bm, M)
 
     R = get_r(sigdm_bm, q)
 
-    # om_ho for rho=0.001
     rho = 0.001
     c = get_cbar(rho, distmat)
     sigdm_rho = get_sigma_residual(distmat, c, M)
@@ -936,7 +530,6 @@ def spurtest_i0resid(
     ch_omi_ho = cholesky_upper(np.linalg.inv(om_ho))
     ch_omi_ha = cholesky_upper(np.linalg.inv(om_ha))
 
-    # LR for data: uses Y - mean(Y)
     X = Y - np.mean(Y)
     P = R.T @ X
     y_P_ho = ch_omi_ho @ P
@@ -945,7 +538,6 @@ def spurtest_i0resid(
     q_P_ha = np.sum(y_P_ha**2)
     LR = float(q_P_ho / q_P_ha)
 
-    # Grid over rho
     rho_min = 0.0001
     rho_max = 0.03
     n_rho = 30
@@ -1079,3 +671,359 @@ def spurtest(
             seed=seed,
         )
     raise ValueError("`test` must be one of 'i0', 'i1', 'i0resid', 'i1resid'.")
+
+
+def spurtransform(
+    formula: str,
+    data: pd.DataFrame,
+    *,
+    lon: str | None = None,
+    lat: str | None = None,
+    coords_euclidean: Sequence[str] | None = None,
+    prefix: str = "h_",
+    transformation: str = "lbmgls",
+    radius: Optional[float] = None,
+    clustvar: Optional[str] = None,
+) -> pd.DataFrame:
+    """Apply a SPUR transformation to the variables referenced in a formula.
+
+    Use this function when you want transformed versions of the variables in a
+    model formula. The function builds one transformation matrix and applies it to
+    each referenced variable, adding new columns with the chosen prefix.
+
+    Args:
+        formula: Formula identifying the variables to transform.
+        data: DataFrame containing the variables and any required coordinate or
+            cluster columns.
+        lon: Name of the longitude column. Use together with `lat`.
+        lat: Name of the latitude column. Use together with `lon`.
+        coords_euclidean: Names of Euclidean coordinate columns. Use instead of
+            `lon` and `lat`.
+        prefix: Prefix added to each transformed variable name.
+        transformation: Transformation method. Must be one of `"nn"`, `"iso"`,
+            `"lbmgls"`, or `"cluster"`.
+        radius: Radius used by the isotropic transformation. Required when
+            `transformation="iso"`.
+        clustvar: Cluster label column used by the cluster transformation.
+            Required when `transformation="cluster"`.
+
+    Returns:
+        A copy of `data` with transformed columns added.
+
+    Raises:
+        ValueError: If the formula is invalid, variables are missing, coordinates
+            are invalid, or the transformation name is unknown.
+        AssertionError: If a required `radius` or `clustvar` is missing, or if the
+            cluster column contains missing values.
+
+    Example:
+        >>> from spur import load_chetty_data, standardize, spurtransform
+        >>> df = load_chetty_data()
+        >>> df = df[["am", "fracblack", "lat", "lon"]].dropna()
+        >>> df = standardize(df, ["am", "fracblack"])
+        >>> df_out = spurtransform(
+        ...     "am ~ fracblack",
+        ...     df,
+        ...     lon="lon",
+        ...     lat="lat",
+        ...     transformation="lbmgls",
+        ... )
+        >>> df_out[["h_am", "h_fracblack"]].head()
+    """
+    df = data.copy()
+    varlist = parse_transform_formula(formula, df)
+
+    if transformation == "cluster":
+        assert clustvar is not None, (
+            "clustvar must be specified for transformation='cluster'"
+        )
+        assert clustvar in df.columns, (
+            f"Cluster variable '{clustvar}' not found in DataFrame"
+        )
+        assert not df[clustvar].isna().any(), (
+            f"Cluster column '{clustvar}' contains missing values."
+        )
+        cluster = df[clustvar].to_numpy()
+        M = cluster_matrix(cluster)
+    else:
+        coord_info = resolve_spur_coords(
+            data=df,
+            use_rows=np.ones(len(df), dtype=bool),
+            lon=lon,
+            lat=lat,
+            coords_euclidean=coords_euclidean,
+        )
+
+        coords = coord_info["coords"]
+        latlon = coord_info["latlong"]
+
+        if coords.shape[1] != 2:
+            raise ValueError(
+                f"Distance-based transformations require exactly 2 coordinate columns, got {coords.shape[1]}"
+            )
+        if transformation == "nn":
+            M = nn_matrix(coords, latlon=latlon)
+        elif transformation == "iso":
+            assert radius is not None, (
+                "radius must be specified for transformation='iso'"
+            )
+            M = iso_matrix(coords, radius, latlon=latlon)
+        elif transformation == "lbmgls":
+            M = lbmgls_matrix(coords, latlon=latlon)
+        else:
+            raise ValueError(
+                f"Unknown transformation: {transformation}. "
+                "Use 'nn', 'iso', 'lbmgls', or 'cluster'."
+            )
+
+    for var in varlist:
+        if var not in df.columns:
+            raise ValueError(f"Variable '{var}' not found in DataFrame")
+
+        data = df[var].values
+
+        if np.any(np.isnan(data)):
+            print(
+                f"Warning: Variable '{var}' contains {np.isnan(data).sum()} missing values. "
+                f"Transformed values involving missing data will be NaN."
+            )
+
+        transformed = M @ data
+        new_name = f"{prefix}{var}"
+        df[new_name] = transformed
+
+    return df
+
+
+def spurhalflife(
+    var: str,
+    data: pd.DataFrame,
+    *,
+    lon: str | None = None,
+    lat: str | None = None,
+    coords_euclidean: Sequence[str] | None = None,
+    q: int = 15,
+    nrep: int = 100000,
+    level: float = 95,
+    normdist: bool = False,
+    seed: int = 42,
+) -> HalfLifeResult:
+    """
+    Compute confidence interval for spatial half-life.
+
+    The half-life is the distance at which spatial correlation = 1/2.
+
+    Parameters
+    ----------
+    data : DataFrame
+        Input data
+    var : str
+        Variable to analyze
+    lon, lat : str, optional
+        Geographic coordinate column names
+    coords_euclidean : sequence of str, optional
+        Euclidean coordinate column names
+    q : int, default 15
+        Number of low-frequency weights
+    nrep : int, default 100000
+        Monte Carlo draws
+    level : float, default 95
+        Confidence level in percent
+    normdist : bool, default False
+        If True, return CI in fractions of max pairwise distance.
+        If False, return in meters (if latlon) or coordinate units.
+    seed : int, optional
+        Random seed
+
+    Returns
+    -------
+    HalfLifeResult
+    """
+    if not isinstance(data, pd.DataFrame):
+        raise ValueError("`data` must be a pandas DataFrame.")
+    if not isinstance(var, str) or not var:
+        raise ValueError("`var` must be a non-empty column name.")
+    if var not in data.columns:
+        raise ValueError(f"Variable '{var}' not found in data.")
+    if not (0 < level < 100):
+        raise ValueError(f"level={level} must be strictly between 0 and 100.")
+    if q < 1:
+        raise ValueError(f"q={q} must be >= 1.")
+    if nrep < 1:
+        raise ValueError(f"nrep={nrep} must be >= 1.")
+
+    Y = data[var].to_numpy(dtype=float)
+    if not np.all(np.isfinite(Y)):
+        raise ValueError(
+            f"Variable '{var}' contains NaN or inf values. All values must be finite."
+        )
+
+    coord_info = resolve_spur_coords(
+        data=data,
+        use_rows=np.ones(len(data), dtype=bool),
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+    )
+    coords = coord_info["coords"]
+    latlon = coord_info["latlong"]
+
+    Y = Y - Y.mean()
+
+    distmat_raw = get_distance_matrix(coords, latlon=latlon)
+
+    max_dist_norm = distmat_raw.max()
+    if max_dist_norm <= 1e-10:
+        raise ValueError(
+            "All coordinates are identical (or nearly so) — half-life normalization "
+            "requires distinct locations."
+        )
+    distmat = distmat_raw / max_dist_norm
+
+    if latlon:
+        max_dist = distmat_raw.max()
+    else:
+        max_dist = distmat_raw.max()
+
+    emat = np.random.default_rng(seed).standard_normal((q, nrep))
+
+    ci_l, ci_u = spur_persistence(Y, distmat, emat, level / 100)
+
+    if ci_u >= 100:
+        ci_u = np.inf
+
+    if not normdist:
+        ci_l = ci_l * max_dist if not np.isnan(ci_l) else ci_l
+        ci_u = ci_u * max_dist if not np.isinf(ci_u) else ci_u
+
+    return HalfLifeResult(
+        ci_lower=ci_l,
+        ci_upper=ci_u,
+        max_dist=max_dist,
+        level=level,
+        normdist=normdist,
+    )
+
+
+def spur(
+    formula: str,
+    data: pd.DataFrame,
+    *,
+    lon: str | None = None,
+    lat: str | None = None,
+    coords_euclidean: list[str] | tuple[str, ...] | None = None,
+    q: int = 15,
+    nrep: int = 100000,
+    seed: int = 42,
+    avc: float = 0.03,
+    uncond: bool = False,
+    cvs: bool = False,
+) -> SpurResult:
+    """Run the full SPUR pipeline and pass the final model to `scpc()`.
+
+    This function runs the two single-variable diagnostics on the dependent
+    variable, chooses either the levels branch or the transformed branch, fits the
+    regression, and then passes the fitted model to `scpc()`.
+
+    Args:
+        formula: Two-sided regression formula for the model of interest.
+        data: DataFrame containing the model variables and coordinate columns.
+        lon: Name of the longitude column. Use together with `lat`.
+        lat: Name of the latitude column. Use together with `lon`.
+        coords_euclidean: Names of Euclidean coordinate columns. Use instead of
+            `lon` and `lat`.
+        q: Number of low-frequency weights used in the SPUR tests.
+        nrep: Number of Monte Carlo draws used in the SPUR tests.
+        seed: Random seed used to generate the SPUR simulation draws.
+        avc: SCPC variance-covariance tuning parameter.
+        uncond: Passed through to `scpc()`.
+        cvs: Passed through to `scpc()`.
+
+    Returns:
+        A `SpurResult` containing the branch decision, the two diagnostic test
+        results, the fitted model, the `scpc()` result, the data used for
+        estimation, and the formula ultimately fit.
+
+    Raises:
+        ValueError: If `formula` is not two-sided or does not contain a dependent
+            variable on the left-hand side.
+        ValueError: Propagated from the SPUR test and transformation steps if the
+            inputs are invalid.
+
+    Example:
+        >>> from spur import load_chetty_data, standardize, spur
+        >>> df = load_chetty_data()
+        >>> df = df[["am", "fracblack", "lat", "lon"]].dropna()
+        >>> df = standardize(df, ["am", "fracblack"])
+        >>> result = spur("am ~ fracblack", df, lon="lon", lat="lat", q=10, nrep=500, seed=42)
+        >>> result.branch
+        >>> result.formula_used
+    """
+    if not isinstance(formula, str) or "~" not in formula:
+        raise ValueError("`formula` must be two-sided, e.g. `y ~ x1 + x2`.")
+
+    depvar = formula.split("~", 1)[0].strip()
+    if not depvar:
+        raise ValueError(
+            "`formula` must have a dependent variable on the left-hand side."
+        )
+
+    test_i0 = spurtest_i0(
+        depvar,
+        data,
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+        q=q,
+        nrep=nrep,
+        seed=seed,
+    )
+    test_i1 = spurtest_i1(
+        depvar,
+        data,
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+        q=q,
+        nrep=nrep,
+        seed=seed,
+    )
+
+    if test_i1.pvalue < 0.1 and test_i0.pvalue >= 0.1:
+        branch = "levels"
+        data_used = data
+        formula_used = formula
+    else:
+        branch = "transformed"
+        data_used = spurtransform(
+            formula,
+            data,
+            lon=lon,
+            lat=lat,
+            coords_euclidean=coords_euclidean,
+            prefix="h_",
+            transformation="lbmgls",
+        )
+        formula_used = rewrite_formula_with_prefix(formula, "h_")
+
+    model = smf.ols(formula_used, data=data_used).fit()
+    scpc_result = scpc(
+        model,
+        data_used,
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+        avc=avc,
+        uncond=uncond,
+        cvs=cvs,
+    )
+
+    return SpurResult(
+        branch=branch,
+        test_i0=test_i0,
+        test_i1=test_i1,
+        model=model,
+        scpc=scpc_result,
+        data_used=data_used,
+        formula_used=formula_used,
+    )

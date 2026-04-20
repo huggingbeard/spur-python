@@ -1,5 +1,4 @@
 from __future__ import annotations
-from collections.abc import Sequence
 import numpy as np
 import pandas as pd
 
@@ -86,24 +85,24 @@ def parse_transform_formula(formula: str, data: pd.DataFrame) -> list[str]:
         raise ValueError("`formula` must be two-sided, e.g. `y ~ x1 + x2`.")
 
     lhs, rhs = [part.strip() for part in formula.split("~", 1)]
-    vars_ = [lhs] if lhs and lhs != "1" else []
+    vars = [lhs] if lhs and lhs != "1" else []
 
     if rhs not in ("", "1"):
         rhs_terms = [term.strip() for term in rhs.split("+")]
         if any(not term for term in rhs_terms):
             raise ValueError("`formula` is invalid.")
-        vars_.extend(rhs_terms)
+        vars.extend(rhs_terms)
     else:
         rhs_terms = []
 
     print(f"[formula-parser] y = {lhs}, covars (selection) = {rhs_terms[:5]}")
 
-    vars_ = list(dict.fromkeys(vars_))
-    assert vars_, "No variables found in `formula`."
-    missing = [name for name in vars_ if name not in data.columns]
+    vars = list(dict.fromkeys(vars))
+    assert vars, "No variables found in `formula`."
+    missing = [name for name in vars if name not in data.columns]
     assert not missing, f"Variables not found in data: {', '.join(missing)}"
 
-    return vars_
+    return vars
 
 
 def rewrite_formula_with_prefix(formula: str, prefix: str) -> str:
@@ -115,71 +114,3 @@ def rewrite_formula_with_prefix(formula: str, prefix: str) -> str:
     rhs_out = " + ".join(f"{prefix}{term}" for term in rhs_terms) if rhs_terms else "1"
 
     return f"{lhs_out} ~ {rhs_out}"
-
-
-def resolve_spur_coords(
-    data: pd.DataFrame,
-    use_rows: np.ndarray,
-    lon: str | None = None,
-    lat: str | None = None,
-    coords_euclidean: Sequence[str] | None = None,
-) -> dict:
-    """Resolve the public coordinate inputs to SPUR's internal coordinate payload.
-
-    This is the bridge between the harmonized public API (`lon`/`lat` or
-    `coords_euclidean`) and the current SPUR numerical code.
-    """
-    use_geodesic = lon is not None or lat is not None
-    use_euclidean = coords_euclidean is not None
-
-    if use_geodesic and use_euclidean:
-        raise ValueError("Specify either `lon`/`lat` or `coords_euclidean`, not both.")
-    if not use_geodesic and not use_euclidean:
-        raise ValueError("Specify coordinates via `lon`/`lat` or `coords_euclidean`.")
-
-    if use_geodesic:
-        assert lon is not None and lat is not None, (
-            "Both `lon` and `lat` must be specified for geodesic coordinates."
-        )
-        missing = [name for name in (lon, lat) if name not in data.columns]
-        assert not missing, (
-            f"Coordinate variables not found in data: {', '.join(missing)}"
-        )
-
-        coords_lon_lat = data.loc[use_rows, [lon, lat]]
-        assert all(
-            np.issubdtype(dtype, np.number) for dtype in coords_lon_lat.dtypes
-        ), "`lon` and `lat` must reference numeric columns."
-        arr = coords_lon_lat.to_numpy(dtype=float)
-        assert np.isfinite(arr).all(), "Geodesic coordinates must be finite."
-        assert ((coords_lon_lat[lon] >= -180) & (coords_lon_lat[lon] <= 180)).all(), (
-            "Longitude values must be in [-180, 180]."
-        )
-        assert ((coords_lon_lat[lat] >= -90) & (coords_lon_lat[lat] <= 90)).all(), (
-            "Latitude values must be in [-90, 90]."
-        )
-        return {
-            "coords": data.loc[use_rows, [lat, lon]].to_numpy(dtype=float),
-            "latlong": True,
-        }
-
-    if (
-        isinstance(coords_euclidean, str)
-        or coords_euclidean is None
-        or len(coords_euclidean) < 1
-    ):
-        raise ValueError(
-            "`coords_euclidean` must be a sequence with at least one column name."
-        )
-
-    missing = [name for name in coords_euclidean if name not in data.columns]
-    assert not missing, f"Coordinate variables not found in data: {', '.join(missing)}"
-
-    coords = data.loc[use_rows, list(coords_euclidean)]
-    assert all(np.issubdtype(dtype, np.number) for dtype in coords.dtypes), (
-        "`coords_euclidean` columns must be numeric."
-    )
-    arr = coords.to_numpy(dtype=float)
-    assert np.isfinite(arr).all(), "Euclidean coordinates must be finite."
-
-    return {"coords": arr, "latlong": False}

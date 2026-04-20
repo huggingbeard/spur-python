@@ -44,6 +44,11 @@ def test_spur_uses_levels_branch_at_10_percent(monkeypatch) -> None:
     assert result.formula_used == "y ~ x"
     assert calls["formula"] == "y ~ x"
     assert calls["rows"] == len(df)
+    assert calls["kwargs"]["lon"] == "lon"
+    assert calls["kwargs"]["lat"] == "lat"
+    assert "coords_euclidean" in calls["kwargs"]
+    assert "coord_euclidean" not in calls["kwargs"]
+    assert calls["kwargs"]["coords_euclidean"] is None
 
 
 def test_spur_uses_transformed_branch_otherwise(monkeypatch) -> None:
@@ -77,6 +82,7 @@ def test_spur_uses_transformed_branch_otherwise(monkeypatch) -> None:
     def fake_scpc(model, data, **kwargs):
         calls["formula"] = model.model.formula
         calls["cols"] = list(data.columns)
+        calls["kwargs"] = kwargs
         return {"ok": True}
 
     monkeypatch.setattr(pipeline, "scpc", fake_scpc)
@@ -89,3 +95,6 @@ def test_spur_uses_transformed_branch_otherwise(monkeypatch) -> None:
     assert calls["formula"] == "h_y ~ h_x"
     assert "h_y" in calls["cols"]
     assert "h_x" in calls["cols"]
+    assert "coords_euclidean" in calls["kwargs"]
+    assert "coord_euclidean" not in calls["kwargs"]
+    assert calls["kwargs"]["coords_euclidean"] is None

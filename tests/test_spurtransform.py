@@ -90,12 +90,12 @@ def test_spurtransform_rejects_missing_coordinates() -> None:
         }
     )
 
-    with pytest.raises(ValueError, match="missing"):
+    with pytest.raises(AssertionError, match="finite"):
         spurtransform("y ~ 1", df, lon="lon", lat="lat", transformation="nn")
 
 
 def test_spurtransform_rejects_missing_variable(sample_df: pd.DataFrame) -> None:
-    with pytest.raises(ValueError, match="not found"):
+    with pytest.raises(AssertionError, match="not found"):
         spurtransform("missing ~ 1", sample_df, lon="lon", lat="lat", transformation="nn")
 
 
@@ -152,7 +152,7 @@ def test_spurtransform_rejects_nullable_string_clusters_with_missing() -> None:
         }
     )
 
-    with pytest.raises(ValueError, match="missing"):
+    with pytest.raises(AssertionError, match="missing"):
         spurtransform(
             "y ~ 1",
             df,

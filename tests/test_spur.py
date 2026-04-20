@@ -1,10 +1,18 @@
 from typing import Any
 from types import SimpleNamespace
 
+import numpy as np
 import pandas as pd
 
 import spur.core as pipeline
-from spur import PipelineResult, spur
+from spur import (
+    Fits,
+    PipelineResult,
+    RegressionResult,
+    TestResult,
+    Tests,
+    spur,
+)
 
 
 def test_spur_returns_full_pipeline_result(monkeypatch) -> None:
@@ -115,3 +123,86 @@ def test_spur_passes_coordinate_kwargs_to_both_scpc_calls(monkeypatch) -> None:
     assert scpc_calls[1]["formula"] == "h_y ~ h_x"
     assert "h_y" in scpc_calls[1]["cols"]
     assert "h_x" in scpc_calls[1]["cols"]
+
+
+def test_pipeline_result_summary_formats_comparison_table() -> None:
+    levels_model = SimpleNamespace(
+        params=pd.Series([1.0, 0.5], index=["Intercept", "x"]),
+        nobs=100.0,
+        rsquared=0.2500,
+        rsquared_adj=0.2300,
+    )
+    transformed_model = SimpleNamespace(
+        params=pd.Series([0.9, 0.4, 0.2], index=["Intercept", "h_x", "h_z"]),
+        nobs=100.0,
+        rsquared=0.2100,
+        rsquared_adj=0.1900,
+    )
+
+    result = PipelineResult(
+        tests=Tests(
+            i0=TestResult("i0", 1.1000, 0.2100, np.array([1.0, 2.0, 3.0]), 0.0100),
+            i1=TestResult("i1", 1.2000, 0.1100, np.array([1.0, 2.0, 3.0]), 0.0200),
+            i0resid=TestResult(
+                "i0resid", 1.3000, 0.3100, np.array([1.0, 2.0, 3.0]), 0.0300
+            ),
+            i1resid=TestResult(
+                "i1resid", 1.4000, 0.4100, np.array([1.0, 2.0, 3.0]), 0.0400
+            ),
+        ),
+        fits=Fits(
+            levels=RegressionResult(
+                model=levels_model,
+                scpc=SimpleNamespace(
+                    scpcstats=np.array(
+                        [
+                            [1.0000, 0.2000, 5.0000, 0.0100, 0.6000, 1.4000],
+                            [0.5000, 0.1000, 5.0000, 0.0200, 0.3000, 0.7000],
+                        ]
+                    ),
+                    q=15,
+                    cv=2.1034,
+                    avc=0.0300,
+                ),
+            ),
+            transformed=RegressionResult(
+                model=transformed_model,
+                scpc=SimpleNamespace(
+                    scpcstats=np.array(
+                        [
+                            [0.9000, 0.1500, 6.0000, 0.0100, 0.6000, 1.2000],
+                            [0.4000, 0.0500, 8.0000, 0.0200, 0.3000, 0.5000],
+                            [0.2000, 0.0300, 6.7000, 0.0300, 0.1400, 0.2600],
+                        ]
+                    ),
+                    q=12,
+                    cv=2.0010,
+                    avc=0.0300,
+                ),
+            ),
+        ),
+    )
+
+    text = result.summary()
+
+    assert "SPUR Pipeline Results" in text
+    assert "Levels" in text
+    assert "Transformed" in text
+    assert "Intercept" in text
+    assert "x" in text
+    assert "z" in text
+    assert "h_x" not in text
+    assert "h_z" not in text
+    assert "(0.2000)" in text
+    assert "(0.0500)" in text
+    assert "Model statistics" in text
+    assert "R-squared" in text
+    assert "Adj. R-squared" in text
+    assert "SCPC q" in text
+    assert "SCPC cv" in text
+    assert "SCPC avc" in text
+    assert "SPUR diagnostics" in text
+    assert "i0" in text
+    assert "i1" in text
+    assert "i0resid" in text
+    assert "i1resid" in text

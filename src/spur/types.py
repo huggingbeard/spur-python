@@ -109,3 +109,9 @@ class PipelineResult:
     """All diagnostic test results."""
     fits: Fits
     """Both fitted regression branches."""
+
+    def summary(self) -> str:
+        """Format the full SPUR pipeline result for display."""
+        from .utils.summary import render_pipeline_summary
+
+        return render_pipeline_summary(self)

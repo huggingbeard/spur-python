@@ -953,8 +953,7 @@ def spur(
         >>> df = df[["am", "fracblack", "lat", "lon"]].dropna()
         >>> df = standardize(df, ["am", "fracblack"])
         >>> result = spur("am ~ fracblack", df, lon="lon", lat="lat", q=10, nrep=500, seed=42)
-        >>> result.tests.i0
-        >>> result.fits.levels.model
+        >>> print(result.summary())
     """
     if not isinstance(formula, str) or "~" not in formula:
         raise ValueError("`formula` must be two-sided, e.g. `y ~ x1 + x2`.")

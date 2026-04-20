@@ -131,12 +131,14 @@ def test_pipeline_result_summary_formats_comparison_table() -> None:
         nobs=100.0,
         rsquared=0.2500,
         rsquared_adj=0.2300,
+        model=SimpleNamespace(endog_names="mobility"),
     )
     transformed_model = SimpleNamespace(
         params=pd.Series([0.9, 0.4, 0.2], index=["Intercept", "h_x", "h_z"]),
         nobs=100.0,
         rsquared=0.2100,
         rsquared_adj=0.1900,
+        model=SimpleNamespace(endog_names="h_mobility"),
     )
 
     result = PipelineResult(
@@ -184,8 +186,33 @@ def test_pipeline_result_summary_formats_comparison_table() -> None:
     )
 
     text = result.summary()
+    lines = text.splitlines()
+    diagnostics_header = next(line for line in lines if line.lstrip().startswith("Test"))
+    regression_header = next(
+        line for line in lines if line.lstrip().startswith("Coefficient")
+    )
+    regression_title_index = lines.index("Regression results".center(len(lines[0])))
 
-    assert "SPUR Pipeline Results" in text
+    assert lines[0] == lines[1]
+    assert set(lines[0]) == {"-"}
+    assert lines[regression_title_index - 1] == ""
+    assert lines[regression_title_index - 2] == lines[0]
+    assert lines[regression_title_index - 3] == lines[0]
+    assert lines[regression_title_index + 1] == lines[0]
+    assert lines[regression_title_index + 2] == lines[0]
+    assert lines[-2] == lines[-1]
+    assert set(lines[-1]) == {"-"}
+    assert "SPUR Pipeline Results" not in text
+    assert "mobility" in text
+    assert "SPUR Diagnostics" in text
+    assert "Regression results" in text
+    assert text.index("SPUR Diagnostics") < text.index("Regression results")
+    assert text.index("Regression results") < text.index("Coefficient")
+    assert diagnostics_header.index("Test") == regression_header.index("Coefficient")
+    assert diagnostics_header.index("LR") == regression_header.index("Levels")
+    assert diagnostics_header.index("p-value") == regression_header.index(
+        "Transformed"
+    )
     assert "Levels" in text
     assert "Transformed" in text
     assert "Intercept" in text
@@ -195,13 +222,13 @@ def test_pipeline_result_summary_formats_comparison_table() -> None:
     assert "h_z" not in text
     assert "(0.2000)" in text
     assert "(0.0500)" in text
-    assert "Model statistics" in text
+    assert "Model statistics" not in text
+    assert "ha_param" not in text
     assert "R-squared" in text
     assert "Adj. R-squared" in text
     assert "SCPC q" in text
     assert "SCPC cv" in text
     assert "SCPC avc" in text
-    assert "SPUR diagnostics" in text
     assert "i0" in text
     assert "i1" in text
     assert "i0resid" in text

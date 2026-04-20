@@ -21,8 +21,36 @@ def format_count(value: float) -> str:
     return str(int(round(float(value))))
 
 
-def render_pipeline_summary(result: PipelineResult) -> str:
-    """Render a statsmodels-like summary for `PipelineResult`."""
+def format_comparison_row(
+    label: str,
+    left: str,
+    right: str,
+    *,
+    label_width: int,
+    value_width: int,
+    gap: int,
+) -> str:
+    """Format one row of the two-column regression table."""
+    pad = " " * gap
+    return f"{label:<{label_width}}{pad}{left:>{value_width}}{pad}{right:>{value_width}}"
+
+
+def format_comparison_header_row(
+    label: str,
+    left: str,
+    right: str,
+    *,
+    label_width: int,
+    value_width: int,
+    gap: int,
+) -> str:
+    """Format one header row for the two-column table layout."""
+    pad = " " * gap
+    return f"{label:<{label_width}}{pad}{left:<{value_width}}{pad}{right:<{value_width}}"
+
+
+def collect_coefficient_rows(result: PipelineResult) -> list[tuple[str, str, str]]:
+    """Collect formatted coefficient and standard-error rows."""
     levels_names = [str(name) for name in result.fits.levels.model.params.index]
     transformed_names = [
         display_term_name(str(name))
@@ -51,12 +79,12 @@ def render_pipeline_summary(result: PipelineResult) -> str:
         if name not in levels_rows:
             row_order.append(name)
 
-    coefficient_lines: list[tuple[str, str, str]] = []
+    coefficient_rows: list[tuple[str, str, str]] = []
     for name in row_order:
         levels_pair = levels_rows.get(name)
         transformed_pair = transformed_rows.get(name)
 
-        coefficient_lines.append(
+        coefficient_rows.append(
             (
                 name,
                 format_decimal(levels_pair[0]) if levels_pair is not None else "",
@@ -65,7 +93,7 @@ def render_pipeline_summary(result: PipelineResult) -> str:
                 else "",
             )
         )
-        coefficient_lines.append(
+        coefficient_rows.append(
             (
                 "",
                 f"({format_decimal(levels_pair[1])})"
@@ -77,7 +105,12 @@ def render_pipeline_summary(result: PipelineResult) -> str:
             )
         )
 
-    model_stats = [
+    return coefficient_rows
+
+
+def collect_model_stat_rows(result: PipelineResult) -> list[tuple[str, str, str]]:
+    """Collect formatted model-statistic rows."""
+    return [
         (
             "N",
             format_count(result.fits.levels.model.nobs),
@@ -110,84 +143,189 @@ def render_pipeline_summary(result: PipelineResult) -> str:
         ),
     ]
 
-    diagnostics = [
+
+def collect_diagnostic_rows(
+    result: PipelineResult,
+) -> list[tuple[str, str, str]]:
+    """Collect formatted SPUR diagnostic rows."""
+    return [
         (
             "i0",
             format_decimal(result.tests.i0.LR),
             format_decimal(result.tests.i0.pvalue),
-            format_decimal(result.tests.i0.ha_param),
         ),
         (
             "i1",
             format_decimal(result.tests.i1.LR),
             format_decimal(result.tests.i1.pvalue),
-            format_decimal(result.tests.i1.ha_param),
         ),
         (
             "i0resid",
             format_decimal(result.tests.i0resid.LR),
             format_decimal(result.tests.i0resid.pvalue),
-            format_decimal(result.tests.i0resid.ha_param),
         ),
         (
             "i1resid",
             format_decimal(result.tests.i1resid.LR),
             format_decimal(result.tests.i1resid.pvalue),
-            format_decimal(result.tests.i1resid.ha_param),
         ),
     ]
 
-    label_width = max(
+
+def render_diagnostics_section(
+    diagnostic_rows: list[tuple[str, str, str]],
+    *,
+    table_width: int,
+    label_width: int,
+    value_width: int,
+    gap: int,
+    rule: str,
+) -> list[str]:
+    """Render the standalone diagnostics block."""
+    lines: list[str] = ["SPUR Diagnostics".center(table_width), rule]
+    lines.append(
+        format_comparison_header_row(
+            "Test",
+            "LR",
+            "p-value",
+            label_width=label_width,
+            value_width=value_width,
+            gap=gap,
+        ).ljust(table_width)
+    )
+    for name, lr, pvalue in diagnostic_rows:
+        lines.append(
+            format_comparison_row(
+                name,
+                lr,
+                pvalue,
+                label_width=label_width,
+                value_width=value_width,
+                gap=gap,
+            ).ljust(table_width)
+        )
+    return lines
+
+
+def render_regression_section(
+    dependent_variable: str,
+    coefficient_rows: list[tuple[str, str, str]],
+    model_stat_rows: list[tuple[str, str, str]],
+    *,
+    table_width: int,
+    label_width: int,
+    value_width: int,
+    gap: int,
+    rule: str,
+) -> list[str]:
+    """Render the regression comparison table and model statistics."""
+    span_width = value_width + gap + value_width
+    span_indent = label_width + gap
+    lines: list[str] = [
+        (" " * span_indent + dependent_variable.center(span_width)).ljust(table_width),
+        (" " * span_indent + "-" * span_width).ljust(table_width),
+        format_comparison_header_row(
+            "Coefficient",
+            "Levels",
+            "Transformed",
+            label_width=label_width,
+            value_width=value_width,
+            gap=gap,
+        ).ljust(table_width),
+        rule,
+    ]
+    for name, left, right in coefficient_rows:
+        lines.append(
+            format_comparison_row(
+                name,
+                left,
+                right,
+                label_width=label_width,
+                value_width=value_width,
+                gap=gap,
+            ).ljust(table_width)
+        )
+    lines.append(rule)
+    for name, left, right in model_stat_rows:
+        lines.append(
+            format_comparison_row(
+                name,
+                left,
+                right,
+                label_width=label_width,
+                value_width=value_width,
+                gap=gap,
+            ).ljust(table_width)
+        )
+    return lines
+
+
+def render_pipeline_summary(result: PipelineResult) -> str:
+    """Render a centered summary table for `PipelineResult`."""
+    dependent_variable = str(result.fits.levels.model.model.endog_names)
+    coefficient_rows = collect_coefficient_rows(result)
+    model_stat_rows = collect_model_stat_rows(result)
+    diagnostic_rows = collect_diagnostic_rows(result)
+
+    comparison_gap = 4
+    comparison_label_width = max(
         len("Coefficient"),
         len("Adj. R-squared"),
         len("SCPC avc"),
-        *(len(name) for name in row_order),
+        *(len(name) for name, _, _ in coefficient_rows),
     )
-    value_width = max(
+    diagnostics_label_width = max(
+        len("Test"),
+        *(len(name) for name, _, _ in diagnostic_rows),
+    )
+    label_width = max(comparison_label_width, diagnostics_label_width)
+    comparison_value_width = max(
         len("Levels"),
         len("Transformed"),
         *[
             len(value)
-            for _, left, right in [*coefficient_lines, *model_stats]
+            for _, left, right in [*coefficient_rows, *model_stat_rows]
             for value in (left, right)
         ],
     )
+    dependent_width = comparison_value_width + comparison_gap + comparison_value_width
+    if len(dependent_variable) > dependent_width:
+        comparison_value_width = max(
+            comparison_value_width,
+            (len(dependent_variable) - comparison_gap + 1) // 2,
+        )
 
-    diag_label_width = max(len("test"), *(len(name) for name, _, _, _ in diagnostics))
-    diag_value_width = max(
-        len("p-value"),
-        len("ha_param"),
-        *[
-            len(value)
-            for _, lr, pvalue, ha_param in diagnostics
-            for value in (lr, pvalue, ha_param)
-        ],
+    comparison_span_width = comparison_value_width + comparison_gap + comparison_value_width
+
+    table_width = label_width + comparison_gap + comparison_span_width
+    rule = "-" * table_width
+
+    lines: list[str] = [rule, rule]
+    lines.extend(
+        render_diagnostics_section(
+            diagnostic_rows,
+            table_width=table_width,
+            label_width=label_width,
+            value_width=comparison_value_width,
+            gap=comparison_gap,
+            rule=rule,
+        )
     )
-
-    lines = [
-        "SPUR Pipeline Results",
-        "=====================",
-        "",
-        f"{'Coefficient':<{label_width}}  {'Levels':>{value_width}}  {'Transformed':>{value_width}}",
-    ]
-    for name, left, right in coefficient_lines:
-        lines.append(
-            f"{name:<{label_width}}  {left:>{value_width}}  {right:>{value_width}}"
-        )
-
-    lines.extend(["", "Model statistics", "----------------"])
-    for name, left, right in model_stats:
-        lines.append(
-            f"{name:<{label_width}}  {left:>{value_width}}  {right:>{value_width}}"
-        )
-
-    lines.extend(["", "SPUR diagnostics", "----------------"])
-    lines.append(
-        f"{'test':<{diag_label_width}}  {'LR':>{diag_value_width}}  {'p-value':>{diag_value_width}}  {'ha_param':>{diag_value_width}}"
+    lines.extend(
+        [rule, rule, "", "Regression results".center(table_width), rule, rule]
     )
-    for name, lr, pvalue, ha_param in diagnostics:
-        lines.append(
-            f"{name:<{diag_label_width}}  {lr:>{diag_value_width}}  {pvalue:>{diag_value_width}}  {ha_param:>{diag_value_width}}"
+    lines.extend(
+        render_regression_section(
+            dependent_variable,
+            coefficient_rows,
+            model_stat_rows,
+            table_width=table_width,
+            label_width=label_width,
+            value_width=comparison_value_width,
+            gap=comparison_gap,
+            rule=rule,
         )
+    )
+    lines.extend([rule, rule])
 
     return "\n".join(lines)

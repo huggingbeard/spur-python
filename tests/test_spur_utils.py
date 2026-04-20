@@ -2,11 +2,11 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from spur.utils import (
+from spur.utils.dist import resolve_spur_coords
+from spur.utils.formula import (
     parse_residual_formula,
     parse_single_var_formula,
     parse_transform_formula,
-    resolve_spur_coords,
     rewrite_formula_with_prefix,
 )
 

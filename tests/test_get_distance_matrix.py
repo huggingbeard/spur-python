@@ -3,7 +3,7 @@ import numpy.testing as npt
 import pytest
 import scipy.spatial.distance as distance
 
-from spur.spurtransform import get_distance_matrix
+from spur.utils.dist import get_distance_matrix
 from tests.config import ATOL, RTOL
 
 

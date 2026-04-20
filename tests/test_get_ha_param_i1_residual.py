@@ -6,13 +6,9 @@ import pandas as pd
 import pytest
 
 from spur import load_chetty_data, standardize
-from spur.spurtest import (
-    get_r,
-    normalized_distmat,
-    get_ha_param_i1_residual,
-    get_sigma_residual,
-    get_cbar,
-)
+from spur.utils.dist import get_cbar, normalized_distmat
+from spur.utils.inference import get_ha_param_i1_residual
+from spur.utils.matrix import get_r, get_sigma_residual
 from tests.config import PARITY_ATOL
 from tests.utils import (
     STATA,

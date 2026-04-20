@@ -1,6 +1,6 @@
 import numpy as np
 
-from spur.spurtest import get_pow_qf
+from spur.utils.inference import get_pow_qf
 
 
 def test_get_pow_qf_returns_probability() -> None:

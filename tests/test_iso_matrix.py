@@ -6,7 +6,7 @@ import numpy.testing as npt
 import pandas as pd
 import pytest
 
-from spur.spurtransform import iso_matrix
+from spur.utils.matrix import iso_matrix
 from tests.config import ATOL, PARITY_ATOL, PARITY_RTOL, RTOL
 from tests.utils import (
     STATA,

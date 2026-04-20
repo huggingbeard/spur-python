@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.testing as npt
 
-from spur.spurtest import get_r
+from spur.utils.matrix import get_r
 from tests.config import ATOL, RTOL
 
 

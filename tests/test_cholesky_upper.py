@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.testing as npt
 
-from spur.spurtest import cholesky_upper
+from spur.utils.matrix import cholesky_upper
 from tests.config import ATOL, RTOL
 
 

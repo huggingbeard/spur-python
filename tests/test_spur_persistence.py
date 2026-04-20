@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 
 from spur import load_chetty_data, standardize
-from spur.spurhalflife import spur_persistence
-from spur.spurtransform import get_distance_matrix
+from spur.utils.dist import get_distance_matrix
+from spur.utils.inference import spur_persistence
 from tests.utils import (
     STATA,
     ensure_spur_stata_installed,

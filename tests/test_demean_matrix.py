@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.testing as npt
 
-from spur.spurtransform import demean_matrix
+from spur.utils.matrix import demean_matrix
 from tests.config import ATOL, RTOL
 
 

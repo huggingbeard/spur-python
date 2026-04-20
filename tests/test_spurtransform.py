@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from spur import spurtransform
-from spur.spurtransform import transform
+from spur.utils.matrix import transform
 from tests.config import ATOL, PARITY_ATOL, PARITY_RTOL
 from tests.utils import (
     STATA,

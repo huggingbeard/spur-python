@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.testing as npt
 
-from spur.spurtest import normalized_distmat
+from spur.utils.dist import normalized_distmat
 from tests.config import ATOL, RTOL
 
 

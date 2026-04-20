@@ -1,6 +1,6 @@
 import pytest
 
-from spur.spurtransform import haversine_distance
+from spur.utils.dist import haversine_distance
 
 
 def test_haversine_distance_zero_for_same_point() -> None:

@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.testing as npt
 
-from spur.spurtest import get_sigma_dm
+from spur.utils.matrix import get_sigma_dm
 from tests.config import ATOL, RTOL
 
 

@@ -3,7 +3,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-import spur.pipeline as pipeline
+import spur.core as pipeline
 from spur import SpurResult, spur
 
 

@@ -13,7 +13,7 @@ Reference: Becker, Boll, Voth (2025) SPUR Stata Package
 import numpy as np
 import pandas as pd
 from collections.abc import Sequence
-from typing import List, Optional, Literal
+from typing import Literal
 from dataclasses import dataclass
 from spur import get_distance_matrix, get_sigma_lbm, demean_matrix
 from .utils import parse_residual_formula, parse_single_var_formula, resolve_spur_coords
@@ -45,13 +45,13 @@ class SpurTestResult:
         return "\n".join(lines)
 
 
-def get_distmat_normalized(coords: np.ndarray, latlon: bool = True) -> np.ndarray:
+def normalized_distmat(coords: np.ndarray, latlon: bool = True) -> np.ndarray:
     """Get distance matrix normalized so max distance = 1."""
     distmat = get_distance_matrix(coords, latlon=latlon)
     return distmat / distmat.max()
 
 
-def get_R(sigma: np.ndarray, qmax: int) -> np.ndarray:
+def get_r(sigma: np.ndarray, qmax: int) -> np.ndarray:
     """
     Get the top qmax eigenvectors of covariance matrix (sorted by eigenvalue desc).
 
@@ -92,7 +92,7 @@ def lvech(S: np.ndarray) -> np.ndarray:
     return S[i, j]
 
 
-def getcbar(rhobar: float, distmat: np.ndarray) -> float:
+def get_cbar(rhobar: float, distmat: np.ndarray) -> float:
     """
     Bisection method to find c such that mean(exp(-c*d)) = rhobar.
 
@@ -154,19 +154,20 @@ def getcbar(rhobar: float, distmat: np.ndarray) -> float:
     return np.sqrt(c0 * c1)
 
 
-def _cholesky_upper(M: np.ndarray) -> np.ndarray:
+def cholesky_upper(M: np.ndarray) -> np.ndarray:
     """
     Get upper triangular Cholesky factor.
 
-    Stata's cholesky() returns lower triangular, and the Stata code uses
-    cholesky(X)' which is the transpose (upper triangular).
+    NumPy returns a lower-triangular factor, while R `chol()` already returns
+    the upper-triangular factor used in the SPUR translations. This helper
+    bridges that library convention difference in Python.
     """
     # numpy returns lower by default, transpose for upper
     L = np.linalg.cholesky(M)
     return L.T
 
 
-def getpow_qf(om0: np.ndarray, om1: np.ndarray, e: np.ndarray) -> float:
+def get_pow_qf(om0: np.ndarray, om1: np.ndarray, e: np.ndarray) -> float:
     """
     Compute power of test via quadratic forms.
 
@@ -188,10 +189,10 @@ def getpow_qf(om0: np.ndarray, om1: np.ndarray, e: np.ndarray) -> float:
     om1i = np.linalg.inv(om1)
 
     # Upper triangular Cholesky factors
-    ch_om0 = _cholesky_upper(om0)
-    ch_om1 = _cholesky_upper(om1)
-    ch_om0i = _cholesky_upper(om0i)
-    ch_om1i = _cholesky_upper(om1i)
+    ch_om0 = cholesky_upper(om0)
+    ch_om1 = cholesky_upper(om1)
+    ch_om0i = cholesky_upper(om0i)
+    ch_om1i = cholesky_upper(om1i)
 
     # Transform matrices (matching Stata: ch_om1i * ch_om0')
     # Note: ch_om0' in Stata means transpose of upper-tri = lower-tri = L
@@ -221,7 +222,7 @@ def getpow_qf(om0: np.ndarray, om1: np.ndarray, e: np.ndarray) -> float:
     return pow_
 
 
-def get_ha_parm_I1(
+def get_ha_param_i1(
     om_ho: np.ndarray, distmat: np.ndarray, R: np.ndarray, e: np.ndarray
 ) -> float:
     """
@@ -229,7 +230,7 @@ def get_ha_parm_I1(
     """
     pow50 = 0.5
     pow_ = 1.0
-    ctry = getcbar(0.95, distmat)
+    ctry = get_cbar(0.95, distmat)
     _MAX_BRACKET = 200
 
     # Step 1: Decrease c until pow < 0.5
@@ -238,12 +239,12 @@ def get_ha_parm_I1(
         c = ctry
         sigdm_c = get_sigma_dm(distmat, c)
         om_c = R.T @ sigdm_c @ R
-        pow_ = getpow_qf(om_ho, om_c, e)
+        pow_ = get_pow_qf(om_ho, om_c, e)
         ctry = ctry / 2
         _iter += 1
         if _iter >= _MAX_BRACKET:
             raise RuntimeError(
-                f"get_ha_parm_I1: step-1 bracketing did not converge in {_MAX_BRACKET} iterations. "
+                f"get_ha_param_i1: step-1 bracketing did not converge in {_MAX_BRACKET} iterations. "
                 "Power may be non-monotone for this dataset."
             )
 
@@ -251,18 +252,18 @@ def get_ha_parm_I1(
 
     # Step 2: Increase c until pow > 0.5
     pow_ = 0.0
-    ctry = getcbar(0.01, distmat)
+    ctry = get_cbar(0.01, distmat)
     _iter = 0
     while pow_ < pow50:
         c = ctry
         sigdm_c = get_sigma_dm(distmat, c)
         om_c = R.T @ sigdm_c @ R
-        pow_ = getpow_qf(om_ho, om_c, e)
+        pow_ = get_pow_qf(om_ho, om_c, e)
         ctry = 2 * ctry
         _iter += 1
         if _iter >= _MAX_BRACKET:
             raise RuntimeError(
-                f"get_ha_parm_I1: step-2 bracketing did not converge in {_MAX_BRACKET} iterations. "
+                f"get_ha_param_i1: step-2 bracketing did not converge in {_MAX_BRACKET} iterations. "
                 "Power may be non-monotone for this dataset."
             )
 
@@ -274,7 +275,7 @@ def get_ha_parm_I1(
         c = (c1 + c2) / 2
         sigdm_c = get_sigma_dm(distmat, c)
         om_c = R.T @ sigdm_c @ R
-        pow_ = getpow_qf(om_ho, om_c, e)
+        pow_ = get_pow_qf(om_ho, om_c, e)
 
         if pow_ > pow50:
             c2 = c
@@ -288,7 +289,7 @@ def get_ha_parm_I1(
     return c
 
 
-def get_ha_parm_I0(
+def get_ha_param_i0(
     om_ho: np.ndarray, om_i0: np.ndarray, om_bm: np.ndarray, e: np.ndarray
 ) -> float:
     """
@@ -302,12 +303,12 @@ def get_ha_parm_I0(
     _iter = 0
     while pow_ > 0.5:
         g = gtry
-        pow_ = getpow_qf(om_ho, om_i0 + g * om_bm, e)
+        pow_ = get_pow_qf(om_ho, om_i0 + g * om_bm, e)
         gtry = g / 2
         _iter += 1
         if _iter >= _MAX_BRACKET:
             raise RuntimeError(
-                f"get_ha_parm_I0: step-1 bracketing did not converge in {_MAX_BRACKET} iterations."
+                f"get_ha_param_i0: step-1 bracketing did not converge in {_MAX_BRACKET} iterations."
             )
     g1 = g
 
@@ -317,12 +318,12 @@ def get_ha_parm_I0(
     _iter = 0
     while pow_ < 0.5:
         g = gtry
-        pow_ = getpow_qf(om_ho, om_i0 + g * om_bm, e)
+        pow_ = get_pow_qf(om_ho, om_i0 + g * om_bm, e)
         gtry = g * 2
         _iter += 1
         if _iter >= _MAX_BRACKET:
             raise RuntimeError(
-                f"get_ha_parm_I0: step-2 bracketing did not converge in {_MAX_BRACKET} iterations."
+                f"get_ha_param_i0: step-2 bracketing did not converge in {_MAX_BRACKET} iterations."
             )
     g2 = g
 
@@ -331,7 +332,7 @@ def get_ha_parm_I0(
     # https://github.com/pdavidboll/SPUR/blob/main/mata/get_ha_parm_I0.mata#L33
     while abs(pow_ - 0.5) > 0.01:
         g = (g1 + g2) / 2
-        pow_ = getpow_qf(om_ho, om_i0 + g * om_bm, e)
+        pow_ = get_pow_qf(om_ho, om_i0 + g * om_bm, e)
         if pow_ > 0.5:
             g2 = g
         else:
@@ -399,7 +400,7 @@ def spurtest_i1(
         coords_euclidean=coords_euclidean,
     )
 
-    distmat = get_distmat_normalized(coord_info["coords"], latlon=coord_info["latlong"])
+    distmat = normalized_distmat(coord_info["coords"], latlon=coord_info["latlong"])
     n = distmat.shape[0]
     if q >= n:
         raise ValueError(f"q={q} must be less than n={n}. Use q <= {n - 1}.")
@@ -416,22 +417,22 @@ def spurtest_i1(
     sigdm_bm = demean_matrix(get_sigma_lbm(distmat))
 
     # Eigenvectors for low-frequency weights
-    R = get_R(sigdm_bm, q)
+    R = get_r(sigdm_bm, q)
 
     # Null hypothesis covariance
     om_ho = R.T @ sigdm_bm @ R
 
     # Alternative hypothesis parameter (~50% power)
-    ha_parm = get_ha_parm_I1(om_ho, distmat, R, emat)
+    ha_parm = get_ha_param_i1(om_ho, distmat, R, emat)
     sigdm_ha = get_sigma_dm(distmat, ha_parm)
     om_ha = R.T @ sigdm_ha @ R
 
     # Simulate LR distribution under H0
-    ch_om_ho = _cholesky_upper(om_ho)
+    ch_om_ho = cholesky_upper(om_ho)
     omi_ho = np.linalg.inv(om_ho)
     omi_ha = np.linalg.inv(om_ha)
-    ch_omi_ho = _cholesky_upper(omi_ho)
-    ch_omi_ha = _cholesky_upper(omi_ha)
+    ch_omi_ho = cholesky_upper(omi_ho)
+    ch_omi_ha = cholesky_upper(omi_ha)
 
     # Draws under H0: y_ho has distribution om_ho
     y_ho = ch_om_ho.T @ emat
@@ -512,7 +513,7 @@ def spurtest_i0(
         coords_euclidean=coords_euclidean,
     )
 
-    distmat = get_distmat_normalized(coord_info["coords"], latlon=coord_info["latlong"])
+    distmat = normalized_distmat(coord_info["coords"], latlon=coord_info["latlong"])
     n = distmat.shape[0]
     if q >= n:
         raise ValueError(f"q={q} must be less than n={n}. Use q <= {n - 1}.")
@@ -529,11 +530,11 @@ def spurtest_i0(
     sigdm_bm = demean_matrix(get_sigma_lbm(distmat))
 
     # Eigenvectors
-    R = get_R(sigdm_bm, q)
+    R = get_r(sigdm_bm, q)
 
     # om_ho for rhobar = 0.001 (near-stationary)
     rho = 0.001
-    c = getcbar(rho, distmat)
+    c = get_cbar(rho, distmat)
     sigdm_rho = get_sigma_dm(distmat, c)
 
     om_rho = R.T @ sigdm_rho @ R
@@ -542,12 +543,12 @@ def spurtest_i0(
     # Find alternative parameter
     om_i0 = om_rho
     om_ho = om_rho
-    ha_parm = get_ha_parm_I0(om_ho, om_i0, om_bm, emat)
+    ha_parm = get_ha_param_i0(om_ho, om_i0, om_bm, emat)
     om_ha = om_i0 + ha_parm * om_bm
 
     # Cholesky factors
-    ch_omi_ho = _cholesky_upper(np.linalg.inv(om_ho))
-    ch_omi_ha = _cholesky_upper(np.linalg.inv(om_ha))
+    ch_omi_ho = cholesky_upper(np.linalg.inv(om_ho))
+    ch_omi_ha = cholesky_upper(np.linalg.inv(om_ha))
 
     # LR statistic for data
     X = Y - np.mean(Y)
@@ -568,12 +569,12 @@ def spurtest_i0(
     for i in range(n_rho):
         rho_i = rho_grid[i]
         if rho_i > 0:
-            c_i = getcbar(rho_i, distmat)
+            c_i = get_cbar(rho_i, distmat)
             sigdm_ho_i = get_sigma_dm(distmat, c_i)
             om_ho_i = R.T @ sigdm_ho_i @ R
         else:
             om_ho_i = np.eye(q)
-        ch_om_ho_list.append(_cholesky_upper(om_ho_i))
+        ch_om_ho_list.append(cholesky_upper(om_ho_i))
 
     pvalue_vec = np.zeros(n_rho)
     cvalue_mat = np.zeros((n_rho, 3))
@@ -610,16 +611,16 @@ def get_sigma_residual(distmat: np.ndarray, c: float, M: np.ndarray) -> np.ndarr
     return M @ sigma @ M.T
 
 
-def get_ha_parm_I1_residual(
+def get_ha_param_i1_residual(
     om_ho: np.ndarray, distmat: np.ndarray, R: np.ndarray, e: np.ndarray, M: np.ndarray
 ) -> float:
     """
     Find alternative parameter c yielding ~50% power for I(1) residual test.
-    Same structure as get_ha_parm_I1 but uses get_sigma_residual.
+    Same structure as get_ha_param_i1 but uses get_sigma_residual.
     """
     pow50 = 0.5
     pow_ = 1.0
-    ctry = getcbar(0.95, distmat)
+    ctry = get_cbar(0.95, distmat)
     _MAX_BRACKET = 200
 
     _iter = 0
@@ -627,28 +628,28 @@ def get_ha_parm_I1_residual(
         c = ctry
         sigdm_c = get_sigma_residual(distmat, c, M)
         om_c = R.T @ sigdm_c @ R
-        pow_ = getpow_qf(om_ho, om_c, e)
+        pow_ = get_pow_qf(om_ho, om_c, e)
         ctry = ctry / 2
         _iter += 1
         if _iter >= _MAX_BRACKET:
             raise RuntimeError(
-                f"get_ha_parm_I1_residual: step-1 bracketing did not converge in {_MAX_BRACKET} iterations."
+                f"get_ha_param_i1_residual: step-1 bracketing did not converge in {_MAX_BRACKET} iterations."
             )
     c1 = c
 
     pow_ = 0.0
-    ctry = getcbar(0.01, distmat)
+    ctry = get_cbar(0.01, distmat)
     _iter = 0
     while pow_ < pow50:
         c = ctry
         sigdm_c = get_sigma_residual(distmat, c, M)
         om_c = R.T @ sigdm_c @ R
-        pow_ = getpow_qf(om_ho, om_c, e)
+        pow_ = get_pow_qf(om_ho, om_c, e)
         ctry = 2 * ctry
         _iter += 1
         if _iter >= _MAX_BRACKET:
             raise RuntimeError(
-                f"get_ha_parm_I1_residual: step-2 bracketing did not converge in {_MAX_BRACKET} iterations."
+                f"get_ha_param_i1_residual: step-2 bracketing did not converge in {_MAX_BRACKET} iterations."
             )
     c2 = c
 
@@ -657,7 +658,7 @@ def get_ha_parm_I1_residual(
         c = (c1 + c2) / 2
         sigdm_c = get_sigma_residual(distmat, c, M)
         om_c = R.T @ sigdm_c @ R
-        pow_ = getpow_qf(om_ho, om_c, e)
+        pow_ = get_pow_qf(om_ho, om_c, e)
         if pow_ > pow50:
             c2 = c
         else:
@@ -699,7 +700,7 @@ def spurtest_i1resid(
         coords_euclidean=coords_euclidean,
     )
 
-    distmat = get_distmat_normalized(coord_info["coords"], latlon=coord_info["latlong"])
+    distmat = normalized_distmat(coord_info["coords"], latlon=coord_info["latlong"])
     n = distmat.shape[0]
     if q >= n:
         raise ValueError(f"q={q} must be less than n={n}. Use q <= {n - 1}.")
@@ -725,24 +726,24 @@ def spurtest_i1resid(
 
     # BM covariance matrix (approximation for demeaned value)
     rho_bm = 0.999
-    c_bm = getcbar(rho_bm, distmat)
+    c_bm = get_cbar(rho_bm, distmat)
     sigdm_bm = get_sigma_residual(distmat, c_bm, M)
 
     # Eigenvectors
-    R = get_R(sigdm_bm, q)
+    R = get_r(sigdm_bm, q)
     om_ho = R.T @ sigdm_bm @ R
 
     # Alternative parameter
-    ha_parm = get_ha_parm_I1_residual(om_ho, distmat, R, emat, M)
+    ha_parm = get_ha_param_i1_residual(om_ho, distmat, R, emat, M)
     sigdm_ha = get_sigma_residual(distmat, ha_parm, M)
     om_ha = R.T @ sigdm_ha @ R
 
     # Simulate LR distribution
-    ch_om_ho = _cholesky_upper(om_ho)
+    ch_om_ho = cholesky_upper(om_ho)
     omi_ho = np.linalg.inv(om_ho)
     omi_ha = np.linalg.inv(om_ha)
-    ch_omi_ho = _cholesky_upper(omi_ho)
-    ch_omi_ha = _cholesky_upper(omi_ha)
+    ch_omi_ho = cholesky_upper(omi_ho)
+    ch_omi_ha = cholesky_upper(omi_ha)
 
     y_ho = ch_om_ho.T @ emat
     y_ho_ho = ch_omi_ho @ y_ho
@@ -791,7 +792,7 @@ def spurtest_i0resid(
         coords_euclidean=coords_euclidean,
     )
 
-    distmat = get_distmat_normalized(coord_info["coords"], latlon=coord_info["latlong"])
+    distmat = normalized_distmat(coord_info["coords"], latlon=coord_info["latlong"])
     n = distmat.shape[0]
     if q >= n:
         raise ValueError(f"q={q} must be less than n={n}. Use q <= {n - 1}.")
@@ -817,14 +818,14 @@ def spurtest_i0resid(
 
     # BM covariance using c_bm from rho_bm=0.999
     rho_bm = 0.999
-    c_bm = getcbar(rho_bm, distmat)
+    c_bm = get_cbar(rho_bm, distmat)
     sigdm_bm = get_sigma_residual(distmat, c_bm, M)
 
-    R = get_R(sigdm_bm, q)
+    R = get_r(sigdm_bm, q)
 
     # om_ho for rho=0.001
     rho = 0.001
-    c = getcbar(rho, distmat)
+    c = get_cbar(rho, distmat)
     sigdm_rho = get_sigma_residual(distmat, c, M)
 
     om_rho = R.T @ sigdm_rho @ R
@@ -832,11 +833,11 @@ def spurtest_i0resid(
 
     om_i0 = om_rho
     om_ho = om_rho
-    ha_parm = get_ha_parm_I0(om_ho, om_i0, om_bm, emat)
+    ha_parm = get_ha_param_i0(om_ho, om_i0, om_bm, emat)
     om_ha = om_i0 + ha_parm * om_bm
 
-    ch_omi_ho = _cholesky_upper(np.linalg.inv(om_ho))
-    ch_omi_ha = _cholesky_upper(np.linalg.inv(om_ha))
+    ch_omi_ho = cholesky_upper(np.linalg.inv(om_ho))
+    ch_omi_ha = cholesky_upper(np.linalg.inv(om_ha))
 
     # LR for data: uses Y - mean(Y)
     X = Y - np.mean(Y)
@@ -857,12 +858,12 @@ def spurtest_i0resid(
     for i in range(n_rho):
         rho_i = rho_grid[i]
         if rho_i > 0:
-            c_i = getcbar(rho_i, distmat)
+            c_i = get_cbar(rho_i, distmat)
             sigdm_ho_i = get_sigma_residual(distmat, c_i, M)
             om_ho_i = R.T @ sigdm_ho_i @ R
         else:
             om_ho_i = np.eye(q)
-        ch_om_ho_list.append(_cholesky_upper(om_ho_i))
+        ch_om_ho_list.append(cholesky_upper(om_ho_i))
 
     pvalue_vec = np.zeros(n_rho)
     cvalue_mat = np.zeros((n_rho, 3))

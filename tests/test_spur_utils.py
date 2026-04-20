@@ -40,18 +40,24 @@ def test_parse_single_var_formula_accepts_y_tilde_1(sample_df: pd.DataFrame) -> 
     assert parsed["use_rows"].tolist() == [True, True, True, True]
 
 
-def test_parse_single_var_formula_rejects_rhs_variables(sample_df: pd.DataFrame) -> None:
+def test_parse_single_var_formula_rejects_rhs_variables(
+    sample_df: pd.DataFrame,
+) -> None:
     with pytest.raises(ValueError):
         parse_single_var_formula("am ~ x", sample_df, fn_name="spurtest()")
 
 
-def test_parse_single_var_formula_rejects_multiple_variables(sample_df: pd.DataFrame) -> None:
+def test_parse_single_var_formula_rejects_multiple_variables(
+    sample_df: pd.DataFrame,
+) -> None:
     with pytest.raises(ValueError):
         parse_single_var_formula("am + x", sample_df, fn_name="spurtest()")
 
 
 def test_parse_residual_formula_builds_y_and_x(sample_df: pd.DataFrame) -> None:
-    parsed = parse_residual_formula("am ~ x + z", sample_df, fn_name="spurtest_i1resid()")
+    parsed = parse_residual_formula(
+        "am ~ x + z", sample_df, fn_name="spurtest_i1resid()"
+    )
 
     assert parsed["Y"].shape == (4, 1)
     assert parsed["X_in"].shape[0] == 4
@@ -67,7 +73,9 @@ def test_parse_residual_formula_handles_intercept_only(sample_df: pd.DataFrame) 
     assert np.allclose(parsed["X_in"], 1.0)
 
 
-def test_parse_residual_formula_requires_two_sided_formula(sample_df: pd.DataFrame) -> None:
+def test_parse_residual_formula_requires_two_sided_formula(
+    sample_df: pd.DataFrame,
+) -> None:
     with pytest.raises(ValueError):
         parse_residual_formula("am", sample_df, fn_name="spurtest_i1resid()")
 
@@ -102,13 +110,17 @@ def test_parse_transform_formula_collects_all_variables(
     assert "[formula-parser] y = am, covars (selection) = ['x', 'z']" in out
 
 
-def test_parse_transform_formula_handles_single_variable_case(sample_df: pd.DataFrame) -> None:
+def test_parse_transform_formula_handles_single_variable_case(
+    sample_df: pd.DataFrame,
+) -> None:
     vars_ = parse_transform_formula("am ~ 1", sample_df)
 
     assert vars_ == ["am"]
 
 
-def test_parse_transform_formula_deduplicates_rhs_variables(sample_df: pd.DataFrame) -> None:
+def test_parse_transform_formula_deduplicates_rhs_variables(
+    sample_df: pd.DataFrame,
+) -> None:
     vars_ = parse_transform_formula("am ~ x + x", sample_df)
 
     assert vars_ == ["am", "x"]
@@ -120,7 +132,9 @@ def test_rewrite_formula_with_prefix_rewrites_both_sides() -> None:
     assert rewritten == "h_am ~ h_x + h_z"
 
 
-def test_resolve_spur_coords_returns_internal_lat_lon_order(sample_df: pd.DataFrame) -> None:
+def test_resolve_spur_coords_returns_internal_lat_lon_order(
+    sample_df: pd.DataFrame,
+) -> None:
     coord_info = resolve_spur_coords(
         data=sample_df,
         use_rows=np.array([True, True, True, True]),

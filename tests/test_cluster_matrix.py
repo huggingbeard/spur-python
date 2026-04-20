@@ -57,7 +57,9 @@ def run_stata_cluster_matrix(tmp_path: Path, cluster: np.ndarray) -> np.ndarray:
     execute_stata_command(script, tmp_path)
 
     stata_df = pd.read_csv(output_csv)
-    return np.column_stack([stata_df[f"m_e{i}"].to_numpy() for i in range(len(cluster))])
+    return np.column_stack(
+        [stata_df[f"m_e{i}"].to_numpy() for i in range(len(cluster))]
+    )
 
 
 def test_cluster_matrix_demeans_within_cluster() -> None:

@@ -16,10 +16,10 @@ from dataclasses import dataclass
 from scipy.special import gamma as gamma_func
 from .spurtransform import get_distance_matrix
 from .spurtest import (
-    get_R,
+    get_r,
     get_sigma_dm,
-    getcbar,
-    _cholesky_upper,
+    get_cbar,
+    cholesky_upper,
 )
 from .utils import resolve_spur_coords
 
@@ -49,7 +49,7 @@ class HalfLifeResult:
         return "\n".join(lines)
 
 
-def _c_ci(
+def c_ci(
     Y: np.ndarray,
     distmat: np.ndarray,
     emat: np.ndarray,
@@ -71,11 +71,11 @@ def _c_ci(
 
     # BM covariance (approximation for demeaned values)
     rho_bm = 0.999
-    c_bm = getcbar(rho_bm, distmat)
+    c_bm = get_cbar(rho_bm, distmat)
     sigdm_bm = get_sigma_dm(distmat, c_bm)
 
     # Eigenvectors
-    R = get_R(sigdm_bm, q)
+    R = get_r(sigdm_bm, q)
 
     # Precompute Omega matrices and constants for c_grid_ho
     ch_om_list = []
@@ -87,9 +87,9 @@ def _c_ci(
         c = c_grid_ho[i]
         sigdm = get_sigma_dm(distmat, c)
         om = R.T @ sigdm @ R
-        ch_om_list.append(_cholesky_upper(om))
+        ch_om_list.append(cholesky_upper(om))
         omi = np.linalg.inv(om)
-        ch_omi_list.append(_cholesky_upper(omi))
+        ch_omi_list.append(cholesky_upper(omi))
         const_den_list[i] = np.sqrt(np.linalg.det(omi)) * const_factor
 
     # Precompute for c_grid_ha
@@ -101,7 +101,7 @@ def _c_ci(
         sigdm = get_sigma_dm(distmat, c)
         om = R.T @ sigdm @ R
         omi = np.linalg.inv(om)
-        ch_omi_ha_list.append(_cholesky_upper(omi))
+        ch_omi_ha_list.append(cholesky_upper(omi))
         const_den_ha_list[i] = np.sqrt(np.linalg.det(omi)) * const_factor
 
     # Test statistic loop
@@ -148,7 +148,7 @@ def _c_ci(
     return pv_mat
 
 
-def spatial_persistence(
+def spur_persistence(
     Y: np.ndarray, distmat: np.ndarray, emat: np.ndarray, level: float
 ) -> tuple:
     """
@@ -185,7 +185,7 @@ def spatial_persistence(
     c_grid_ha = -np.log(0.5) / hl_grid_ha
 
     # Compute p-values
-    pv_mat = _c_ci(Y, distmat, emat, c_grid_ho, c_grid_ha)
+    pv_mat = c_ci(Y, distmat, emat, c_grid_ho, c_grid_ha)
 
     # CI: half-lives where p-value > 1 - level
     ii = pv_mat > (1 - level)
@@ -277,8 +277,8 @@ def spurhalflife(
     # Distance matrices
     distmat_raw = get_distance_matrix(coords, latlon=latlon)
 
-    # Stata's getcbar uses a normalized distmat (max = 1) where latlon distances
-    # come out in units of "fraction of max distance". The spatial_persistence
+    # Stata's get_cbar uses a normalized distmat (max = 1) where latlon distances
+    # come out in units of "fraction of max distance". The spur_persistence
     # function expects a normalized distmat.
     max_dist_norm = distmat_raw.max()
     if max_dist_norm <= 1e-10:
@@ -303,7 +303,7 @@ def spurhalflife(
     emat = np.random.default_rng(seed).standard_normal((q, nrep))
 
     # Compute CI (in normalized units)
-    ci_l, ci_u = spatial_persistence(Y, distmat, emat, level / 100)
+    ci_l, ci_u = spur_persistence(Y, distmat, emat, level / 100)
 
     # Upper bound check: if at the tail (100), treat as infinity
     if ci_u >= 100:

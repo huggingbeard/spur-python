@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from spur import load_chetty_data, standardize
-from spur.spurhalflife import spatial_persistence
+from spur.spurhalflife import spur_persistence
 from spur.spurtransform import get_distance_matrix
 from tests.utils import STATA, ensure_spur_stata_installed, stata_path
 
@@ -23,7 +23,7 @@ def chetty_df() -> pd.DataFrame:
     return standardize(df, ["am"])
 
 
-def run_stata_spatial_persistence(tmp_path: Path, df: pd.DataFrame) -> tuple[float, float]:
+def run_stata_spur_persistence(tmp_path: Path, df: pd.DataFrame) -> tuple[float, float]:
     stata_root = ensure_spur_stata_installed()
     plus = stata_root / "plus"
     personal = stata_root / "personal"
@@ -71,14 +71,14 @@ def run_stata_spatial_persistence(tmp_path: Path, df: pd.DataFrame) -> tuple[flo
     return float(row["ci_lower"]), float(row["ci_upper"])
 
 
-def test_spatial_persistence_returns_ordered_interval(chetty_df: pd.DataFrame) -> None:
+def test_spur_persistence_returns_ordered_interval(chetty_df: pd.DataFrame) -> None:
     coords = chetty_df[["lat", "lon"]].to_numpy()
     y = chetty_df["am"].to_numpy()
     distmat = get_distance_matrix(coords, latlon=True)
     distmat = distmat / distmat.max()
     emat = np.random.default_rng(42).standard_normal((15, 200))
 
-    ci_lower, ci_upper = spatial_persistence(y - y.mean(), distmat, emat, 0.95)
+    ci_lower, ci_upper = spur_persistence(y - y.mean(), distmat, emat, 0.95)
 
     assert np.isfinite(ci_lower)
     assert np.isfinite(ci_upper)
@@ -86,7 +86,7 @@ def test_spatial_persistence_returns_ordered_interval(chetty_df: pd.DataFrame) -
 
 
 @pytest.mark.skipif(STATA is None, reason="stata-mp not installed")
-def test_spatial_persistence_matches_stata(
+def test_spur_persistence_matches_stata(
     tmp_path: Path,
     chetty_df: pd.DataFrame,
 ) -> None:
@@ -96,8 +96,8 @@ def test_spatial_persistence_matches_stata(
     distmat = distmat / distmat.max()
     emat = np.random.default_rng(42).standard_normal((15, NREP))
 
-    py_lower, py_upper = spatial_persistence(y - y.mean(), distmat, emat, 0.95)
-    st_lower, st_upper = run_stata_spatial_persistence(tmp_path, chetty_df)
+    py_lower, py_upper = spur_persistence(y - y.mean(), distmat, emat, 0.95)
+    st_lower, st_upper = run_stata_spur_persistence(tmp_path, chetty_df)
 
     assert py_lower == pytest.approx(st_lower, abs=HALFLIFE_ATOL)
     if np.isnan(st_upper):

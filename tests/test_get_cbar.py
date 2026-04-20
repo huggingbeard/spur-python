@@ -1,10 +1,10 @@
 import numpy as np
 import pytest
 
-from spur.spurtest import getcbar, lvech
+from spur.spurtest import get_cbar, lvech
 
 
-def test_getcbar_matches_target_average_correlation() -> None:
+def test_get_cbar_matches_target_average_correlation() -> None:
     distmat = np.array(
         [
             [0.0, 0.2, 0.8],
@@ -14,7 +14,7 @@ def test_getcbar_matches_target_average_correlation() -> None:
     )
     rhobar = 0.5
 
-    c = getcbar(rhobar, distmat)
+    c = get_cbar(rhobar, distmat)
     avg_corr = np.mean(np.exp(-c * lvech(distmat)))
 
     assert c > 0

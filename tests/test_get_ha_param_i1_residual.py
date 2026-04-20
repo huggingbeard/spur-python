@@ -7,8 +7,13 @@ import pandas as pd
 import pytest
 
 from spur import load_chetty_data, standardize
-from spur.spurtest import get_R, get_distmat_normalized, get_ha_parm_I0, get_sigma_dm, getcbar
-from spur.spurtransform import demean_matrix, get_sigma_lbm
+from spur.spurtest import (
+    get_r,
+    normalized_distmat,
+    get_ha_param_i1_residual,
+    get_sigma_residual,
+    get_cbar,
+)
 from tests.config import PARITY_ATOL
 from tests.utils import STATA, ensure_spur_stata_installed, stata_path
 
@@ -23,12 +28,12 @@ def chetty_df() -> pd.DataFrame:
     return standardize(df, ["am", "fracblack"])
 
 
-def run_stata_ha_param_i0(tmp_path: Path, df: pd.DataFrame) -> float:
+def run_stata_ha_param_i1_residual(tmp_path: Path, df: pd.DataFrame) -> float:
     stata_root = ensure_spur_stata_installed()
     plus = stata_root / "plus"
     personal = stata_root / "personal"
-    input_csv = tmp_path / "i0_input.csv"
-    output_csv = tmp_path / "i0_output.csv"
+    input_csv = tmp_path / "i1resid_input.csv"
+    output_csv = tmp_path / "i1resid_output.csv"
 
     df.to_csv(input_csv, index=False)
 
@@ -45,7 +50,7 @@ def run_stata_ha_param_i0(tmp_path: Path, df: pd.DataFrame) -> float:
         rename lon s_2
         set seed 42
 
-        _spurtest_i0 am, q(10) nrep({NREP}) latlong
+        _spurtest_i1resid am fracblack, q(10) nrep({NREP}) latlong
 
         scalar h = r(ha_param)
 
@@ -68,38 +73,42 @@ def run_stata_ha_param_i0(tmp_path: Path, df: pd.DataFrame) -> float:
     return float(pd.read_csv(output_csv).iloc[0]["ha_param"])
 
 
-def test_get_ha_parm_i0_returns_positive_value() -> None:
+def test_get_ha_param_i1_residual_returns_positive_value() -> None:
     rng = np.random.default_rng(42)
-    coords = np.column_stack([rng.uniform(45, 55, 30), rng.uniform(5, 15, 30)])
-    distmat = get_distmat_normalized(coords, latlon=True)
-    sigdm_bm = demean_matrix(get_sigma_lbm(distmat))
-    R = get_R(sigdm_bm, 10)
-    c = getcbar(0.001, distmat)
-    om_i0 = R.T @ get_sigma_dm(distmat, c) @ R
-    om_bm = R.T @ sigdm_bm @ R
+    n = 30
+    coords = np.column_stack([rng.uniform(45, 55, n), rng.uniform(5, 15, n)])
+    distmat = normalized_distmat(coords, latlon=True)
+    X_in = np.column_stack([np.ones(n), rng.standard_normal(n), rng.standard_normal(n)])
+    M = np.eye(n) - X_in @ np.linalg.inv(X_in.T @ X_in) @ X_in.T
+    c_bm = get_cbar(0.999, distmat)
+    sigdm_bm = get_sigma_residual(distmat, c_bm, M)
+    R = get_r(sigdm_bm, 10)
+    om_ho = R.T @ sigdm_bm @ R
     emat = rng.standard_normal((10, 10_000))
 
-    ha_param = get_ha_parm_I0(om_i0, om_i0, om_bm, emat)
+    ha_param = get_ha_param_i1_residual(om_ho, distmat, R, emat, M)
 
     assert np.isfinite(ha_param)
     assert ha_param > 0
 
 
 @pytest.mark.skipif(STATA is None, reason="stata-mp not installed")
-def test_get_ha_parm_i0_matches_stata(
+def test_get_ha_param_i1_residual_matches_stata(
     tmp_path: Path,
     chetty_df: pd.DataFrame,
 ) -> None:
     coords = chetty_df[["lat", "lon"]].to_numpy()
-    distmat = get_distmat_normalized(coords, latlon=True)
-    sigdm_bm = demean_matrix(get_sigma_lbm(distmat))
-    R = get_R(sigdm_bm, 10)
-    c = getcbar(0.001, distmat)
-    om_i0 = R.T @ get_sigma_dm(distmat, c) @ R
-    om_bm = R.T @ sigdm_bm @ R
+    distmat = normalized_distmat(coords, latlon=True)
+    X = chetty_df["fracblack"].to_numpy()
+    X_in = np.column_stack([np.ones(len(chetty_df)), X])
+    M = np.eye(len(chetty_df)) - X_in @ np.linalg.inv(X_in.T @ X_in) @ X_in.T
+    c_bm = get_cbar(0.999, distmat)
+    sigdm_bm = get_sigma_residual(distmat, c_bm, M)
+    R = get_r(sigdm_bm, 10)
+    om_ho = R.T @ sigdm_bm @ R
     emat = np.random.default_rng(42).standard_normal((10, NREP))
 
-    py_value = get_ha_parm_I0(om_i0, om_i0, om_bm, emat)
-    st_value = run_stata_ha_param_i0(tmp_path, chetty_df)
+    py_value = get_ha_param_i1_residual(om_ho, distmat, R, emat, M)
+    st_value = run_stata_ha_param_i1_residual(tmp_path, chetty_df)
 
     assert py_value == pytest.approx(st_value, abs=PARITY_ATOL)

@@ -1,7 +1,7 @@
 import numpy as np
 import numpy.testing as npt
 
-from spur.spurtest import _cholesky_upper
+from spur.spurtest import cholesky_upper
 from tests.config import ATOL, RTOL
 
 
@@ -14,7 +14,7 @@ def test_cholesky_upper_reconstructs_spd_matrix() -> None:
         ]
     )
 
-    upper = _cholesky_upper(mat)
+    upper = cholesky_upper(mat)
 
     assert np.allclose(upper, np.triu(upper))
     npt.assert_allclose(upper.T @ upper, mat, atol=ATOL, rtol=RTOL)

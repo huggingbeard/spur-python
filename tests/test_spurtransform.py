@@ -96,7 +96,9 @@ def test_spurtransform_rejects_missing_coordinates() -> None:
 
 def test_spurtransform_rejects_missing_variable(sample_df: pd.DataFrame) -> None:
     with pytest.raises(AssertionError, match="not found"):
-        spurtransform("missing ~ 1", sample_df, lon="lon", lat="lat", transformation="nn")
+        spurtransform(
+            "missing ~ 1", sample_df, lon="lon", lat="lat", transformation="nn"
+        )
 
 
 def test_spurtransform_matches_direct_transform(
@@ -198,9 +200,7 @@ def test_spurtransform_cluster_works_without_coordinate_columns_present() -> Non
     out = spurtransform("y ~ 1", df, transformation="cluster", clustvar="grp")
 
     for group in ["A", "B"]:
-        assert out.loc[df["grp"] == group, "h_y"].sum() == pytest.approx(
-            0.0, abs=ATOL
-        )
+        assert out.loc[df["grp"] == group, "h_y"].sum() == pytest.approx(0.0, abs=ATOL)
 
 
 def test_spurtransform_accepts_euclidean_coordinates() -> None:

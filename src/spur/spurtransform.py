@@ -13,7 +13,7 @@ functionality that removes spatial unit roots from variables.
 import numpy as np
 import pandas as pd
 from collections.abc import Sequence
-from typing import Union, List, Optional
+from typing import Optional
 from .utils import parse_transform_formula, resolve_spur_coords
 
 
@@ -461,9 +461,15 @@ def spurtransform(
     # Build transformation matrix once (reuse for all variables).
     # Cluster demeaning does not use coordinates, so skip coord work entirely.
     if transformation == "cluster":
-        assert clustvar is not None, "clustvar must be specified for transformation='cluster'"
-        assert clustvar in df.columns, f"Cluster variable '{clustvar}' not found in DataFrame"
-        assert not df[clustvar].isna().any(), f"Cluster column '{clustvar}' contains missing values."
+        assert clustvar is not None, (
+            "clustvar must be specified for transformation='cluster'"
+        )
+        assert clustvar in df.columns, (
+            f"Cluster variable '{clustvar}' not found in DataFrame"
+        )
+        assert not df[clustvar].isna().any(), (
+            f"Cluster column '{clustvar}' contains missing values."
+        )
         cluster = df[clustvar].to_numpy()
         M = cluster_matrix(cluster)
     else:
@@ -485,7 +491,9 @@ def spurtransform(
         if transformation == "nn":
             M = nn_matrix(coords, latlon=latlon)
         elif transformation == "iso":
-            assert radius is not None, "radius must be specified for transformation='iso'"
+            assert radius is not None, (
+                "radius must be specified for transformation='iso'"
+            )
             M = iso_matrix(coords, radius, latlon=latlon)
         elif transformation == "lbmgls":
             M = lbmgls_matrix(coords, latlon=latlon)

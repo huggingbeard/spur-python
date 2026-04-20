@@ -64,7 +64,9 @@ def run_stata_transform(
     return pd.read_csv(output_csv)["d_y"].to_numpy()
 
 
-@pytest.mark.parametrize("method,kwargs", [("nn", {}), ("iso", {"radius": 1_000_000}), ("lbmgls", {})])
+@pytest.mark.parametrize(
+    "method,kwargs", [("nn", {}), ("iso", {"radius": 1_000_000}), ("lbmgls", {})]
+)
 def test_transform_maps_constant_to_zero(
     grid_coords: np.ndarray,
     method: str,

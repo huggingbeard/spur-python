@@ -24,7 +24,9 @@ def grid_coords() -> np.ndarray:
     return np.column_stack([lat, lon])
 
 
-def run_stata_iso_matrix(tmp_path: Path, coords: np.ndarray, radius: float) -> np.ndarray:
+def run_stata_iso_matrix(
+    tmp_path: Path, coords: np.ndarray, radius: float
+) -> np.ndarray:
     stata_root = ensure_spur_stata_installed()
     plus = stata_root / "plus"
     personal = stata_root / "personal"

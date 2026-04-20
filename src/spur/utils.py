@@ -16,7 +16,9 @@ def parse_single_var_formula(formula: str, data: pd.DataFrame, fn_name: str) -> 
     raw = formula.strip()
 
     if "+" in raw:
-        raise ValueError(f"`formula` for {fn_name} must reference exactly one variable.")
+        raise ValueError(
+            f"`formula` for {fn_name} must reference exactly one variable."
+        )
 
     if "~" not in raw:
         var = raw
@@ -37,10 +39,14 @@ def parse_residual_formula(formula: str, data: pd.DataFrame, fn_name: str) -> di
     existing matrix-based SPUR residual implementation.
     """
     if not isinstance(formula, str) or "~" not in formula:
-        raise ValueError(f"`formula` for {fn_name} must be two-sided, e.g. `y ~ x1 + x2`.")
+        raise ValueError(
+            f"`formula` for {fn_name} must be two-sided, e.g. `y ~ x1 + x2`."
+        )
 
     lhs, rhs = [part.strip() for part in formula.split("~", 1)]
-    assert lhs, f"`formula` for {fn_name} must have a dependent variable on the left-hand side."
+    assert lhs, (
+        f"`formula` for {fn_name} must have a dependent variable on the left-hand side."
+    )
 
     rhs_terms = [] if rhs in ("", "1") else [term.strip() for term in rhs.split("+")]
     if any(not term for term in rhs_terms):
@@ -132,16 +138,26 @@ def resolve_spur_coords(
         raise ValueError("Specify coordinates via `lon`/`lat` or `coords_euclidean`.")
 
     if use_geodesic:
-        assert lon is not None and lat is not None, "Both `lon` and `lat` must be specified for geodesic coordinates."
+        assert lon is not None and lat is not None, (
+            "Both `lon` and `lat` must be specified for geodesic coordinates."
+        )
         missing = [name for name in (lon, lat) if name not in data.columns]
-        assert not missing, f"Coordinate variables not found in data: {', '.join(missing)}"
+        assert not missing, (
+            f"Coordinate variables not found in data: {', '.join(missing)}"
+        )
 
         coords_lon_lat = data.loc[use_rows, [lon, lat]]
-        assert all(np.issubdtype(dtype, np.number) for dtype in coords_lon_lat.dtypes), "`lon` and `lat` must reference numeric columns."
+        assert all(
+            np.issubdtype(dtype, np.number) for dtype in coords_lon_lat.dtypes
+        ), "`lon` and `lat` must reference numeric columns."
         arr = coords_lon_lat.to_numpy(dtype=float)
         assert np.isfinite(arr).all(), "Geodesic coordinates must be finite."
-        assert ((coords_lon_lat[lon] >= -180) & (coords_lon_lat[lon] <= 180)).all(), "Longitude values must be in [-180, 180]."
-        assert ((coords_lon_lat[lat] >= -90) & (coords_lon_lat[lat] <= 90)).all(), "Latitude values must be in [-90, 90]."
+        assert ((coords_lon_lat[lon] >= -180) & (coords_lon_lat[lon] <= 180)).all(), (
+            "Longitude values must be in [-180, 180]."
+        )
+        assert ((coords_lon_lat[lat] >= -90) & (coords_lon_lat[lat] <= 90)).all(), (
+            "Latitude values must be in [-90, 90]."
+        )
         return {
             "coords": data.loc[use_rows, [lat, lon]].to_numpy(dtype=float),
             "latlong": True,
@@ -152,13 +168,17 @@ def resolve_spur_coords(
         or coords_euclidean is None
         or len(coords_euclidean) < 1
     ):
-        raise ValueError("`coords_euclidean` must be a sequence with at least one column name.")
+        raise ValueError(
+            "`coords_euclidean` must be a sequence with at least one column name."
+        )
 
     missing = [name for name in coords_euclidean if name not in data.columns]
     assert not missing, f"Coordinate variables not found in data: {', '.join(missing)}"
 
     coords = data.loc[use_rows, list(coords_euclidean)]
-    assert all(np.issubdtype(dtype, np.number) for dtype in coords.dtypes), "`coords_euclidean` columns must be numeric."
+    assert all(np.issubdtype(dtype, np.number) for dtype in coords.dtypes), (
+        "`coords_euclidean` columns must be numeric."
+    )
     arr = coords.to_numpy(dtype=float)
     assert np.isfinite(arr).all(), "Euclidean coordinates must be finite."
 

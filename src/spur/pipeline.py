@@ -41,7 +41,9 @@ def spur(
 
     depvar = formula.split("~", 1)[0].strip()
     if not depvar:
-        raise ValueError("`formula` must have a dependent variable on the left-hand side.")
+        raise ValueError(
+            "`formula` must have a dependent variable on the left-hand side."
+        )
 
     test_i0 = spurtest_i0(
         depvar,

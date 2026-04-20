@@ -141,5 +141,7 @@ def test_spurhalflife_matches_stata(
     if np.isinf(py_value.ci_upper):
         assert pd.isna(st_value["ci_upper"])
     else:
-        assert py_value.ci_upper == pytest.approx(st_value["ci_upper"], abs=HALFLIFE_ATOL)
+        assert py_value.ci_upper == pytest.approx(
+            st_value["ci_upper"], abs=HALFLIFE_ATOL
+        )
     assert py_value.max_dist == pytest.approx(st_value["max_dist"], abs=HALFLIFE_ATOL)

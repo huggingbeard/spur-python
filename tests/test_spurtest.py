@@ -158,7 +158,9 @@ def test_spurtest_residual_variants_reject_rank_deficient_regressors() -> None:
 def test_spurtest_selector_accepts_bare_variable_and_y_tilde_1(
     chetty_df: pd.DataFrame,
 ) -> None:
-    bare = spurtest("am", chetty_df, test="i1", lon="lon", lat="lat", q=10, nrep=200, seed=42)
+    bare = spurtest(
+        "am", chetty_df, test="i1", lon="lon", lat="lat", q=10, nrep=200, seed=42
+    )
     rhs1 = spurtest(
         "am ~ 1",
         chetty_df,
@@ -203,10 +205,18 @@ def test_spurtest_selector_rejects_rhs_for_single_variable_tests(
 
 
 def test_spurtest_selector_matches_wrappers(chetty_df: pd.DataFrame) -> None:
-    sel_i0 = spurtest("am", chetty_df, test="i0", lon="lon", lat="lat", q=10, nrep=100, seed=42)
-    wrap_i0 = spurtest_i0("am", chetty_df, lon="lon", lat="lat", q=10, nrep=100, seed=42)
-    sel_i1 = spurtest("am", chetty_df, test="i1", lon="lon", lat="lat", q=10, nrep=100, seed=42)
-    wrap_i1 = spurtest_i1("am", chetty_df, lon="lon", lat="lat", q=10, nrep=100, seed=42)
+    sel_i0 = spurtest(
+        "am", chetty_df, test="i0", lon="lon", lat="lat", q=10, nrep=100, seed=42
+    )
+    wrap_i0 = spurtest_i0(
+        "am", chetty_df, lon="lon", lat="lat", q=10, nrep=100, seed=42
+    )
+    sel_i1 = spurtest(
+        "am", chetty_df, test="i1", lon="lon", lat="lat", q=10, nrep=100, seed=42
+    )
+    wrap_i1 = spurtest_i1(
+        "am", chetty_df, lon="lon", lat="lat", q=10, nrep=100, seed=42
+    )
     sel_i0r = spurtest(
         "am ~ fracblack",
         chetty_df,

@@ -321,18 +321,3 @@ def spurhalflife(
         level=level,
         normdist=normdist,
     )
-
-
-if __name__ == "__main__":
-    # Quick self-test
-    np.random.seed(42)
-    n = 30
-    lat = np.random.uniform(40, 50, n)
-    lon = np.random.uniform(5, 15, n)
-    y = np.cumsum(np.random.randn(n)) + 0.5 * lat
-
-    df = pd.DataFrame({"lat": lat, "lon": lon, "y": y})
-
-    print("Spatial half-life test (n=30, nrep=5000)...")
-    result = spurhalflife(df, "y", ["lat", "lon"], q=10, nrep=5000, seed=42)
-    print(result.summary())

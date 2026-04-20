@@ -767,7 +767,6 @@ def spurtest_i1resid(
     )
 
 
-# TODO(rename)
 def spurtest_i0resid(
     formula: str,
     data: pd.DataFrame,
@@ -973,22 +972,3 @@ def spurtest(
             seed=seed,
         )
     raise ValueError("`test` must be one of 'i0', 'i1', 'i0resid', 'i1resid'.")
-
-
-if __name__ == "__main__":
-    # Quick test with synthetic data
-    np.random.seed(42)
-    n = 30
-    lat = np.random.uniform(40, 50, n)
-    lon = np.random.uniform(5, 15, n)
-    y = np.random.randn(n) + 0.2 * lat  # mild spatial correlation
-
-    df = pd.DataFrame({"lat": lat, "lon": lon, "y": y})
-
-    print("Testing spurtest i1 (small N=30, nrep=1000)...")
-    result = spurtest(df, "i1", "y", ["lat", "lon"], q=10, nrep=1000, seed=42)
-    print(result.summary())
-
-    print("\nTesting spurtest i0 (small N=30, nrep=1000)...")
-    result = spurtest(df, "i0", "y", ["lat", "lon"], q=10, nrep=1000, seed=42)
-    print(result.summary())

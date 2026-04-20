@@ -1,0 +1,21 @@
+import numpy as np
+import pytest
+
+from spur import getcbar, lvech
+
+
+def test_getcbar_matches_target_average_correlation() -> None:
+    distmat = np.array(
+        [
+            [0.0, 0.2, 0.8],
+            [0.2, 0.0, 0.6],
+            [0.8, 0.6, 0.0],
+        ]
+    )
+    rhobar = 0.5
+
+    c = getcbar(rhobar, distmat)
+    avg_corr = np.mean(np.exp(-c * lvech(distmat)))
+
+    assert c > 0
+    assert avg_corr == pytest.approx(rhobar, abs=1e-3)

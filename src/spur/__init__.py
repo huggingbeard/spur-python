@@ -22,6 +22,7 @@ from .spurhalflife import (
     spatial_persistence,
     spurhalflife,
 )
+from .pipeline import SpurResult, spur
 
 from .spurtest import (
     SpurTestResult,
@@ -34,12 +35,12 @@ from .spurtest import (
     getpow_qf,
     get_ha_parm_I1,
     get_ha_parm_I0,
-    spatial_i1_test,
-    spatial_i0_test,
+    spurtest_i1,
+    spurtest_i0,
     get_sigma_residual,
     get_ha_parm_I1_residual,
-    spatial_i1_test_residual,
-    spatial_i0_test_residual,
+    spurtest_i1resid,
+    spurtest_i0resid,
     spurtest,
 )
 
@@ -60,6 +61,8 @@ __all__ = [
     "HalfLifeResult",
     "spatial_persistence",
     "spurhalflife",
+    "SpurResult",
+    "spur",
     "SpurTestResult",
     "get_distmat_normalized",
     "get_R",
@@ -70,11 +73,11 @@ __all__ = [
     "getpow_qf",
     "get_ha_parm_I1",
     "get_ha_parm_I0",
-    "spatial_i1_test",
-    "spatial_i0_test",
+    "spurtest_i1",
+    "spurtest_i0",
     "get_sigma_residual",
     "get_ha_parm_I1_residual",
-    "spatial_i1_test_residual",
-    "spatial_i0_test_residual",
+    "spurtest_i1resid",
+    "spurtest_i0resid",
     "spurtest",
 ]

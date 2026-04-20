@@ -12,9 +12,11 @@ Reference: Becker, Boll, Voth (2025) SPUR Stata Package
 
 import numpy as np
 import pandas as pd
+from collections.abc import Sequence
 from typing import List, Optional, Literal
 from dataclasses import dataclass
 from spur import get_distance_matrix, get_sigma_lbm, demean_matrix
+from .utils import parse_residual_formula, parse_single_var_formula, resolve_spur_coords
 
 
 @dataclass
@@ -341,25 +343,72 @@ def get_ha_parm_I0(
     return g
 
 
-def spatial_i1_test(
-    Y: np.ndarray, distmat: np.ndarray, emat: np.ndarray
+def spurtest_i1(
+    var: str,
+    data: pd.DataFrame,
+    *,
+    lon: str | None = None,
+    lat: str | None = None,
+    coords_euclidean: Sequence[str] | None = None,
+    q: int = 15,
+    nrep: int = 100000,
+    seed: int = 42,
 ) -> SpurTestResult:
     """
-    Test H0: I(1) (unit root) for variable Y.
+    Test H0: I(1) (unit root) for a single variable.
 
     Parameters
     ----------
-    Y : ndarray (n,)
+    var : str
         Variable to test
-    distmat : ndarray (n, n)
-        Normalized distance matrix
-    emat : ndarray (q, nrep)
-        Monte Carlo draws (standard normal)
+    data : DataFrame
+        Input data
+    lon, lat : str, optional
+        Geographic coordinate column names
+    coords_euclidean : sequence of str, optional
+        Euclidean coordinate column names
+    q : int, default 15
+        Number of low-frequency weights
+    nrep : int, default 100000
+        Monte Carlo draws
+    seed : int, default 42
+        Random seed
 
     Returns
     -------
     SpurTestResult
     """
+    if not isinstance(data, pd.DataFrame):
+        raise ValueError("`data` must be a pandas DataFrame.")
+    if not isinstance(var, str) or not var:
+        raise ValueError("`var` must be a non-empty column name.")
+    if var not in data.columns:
+        raise ValueError(f"Variable '{var}' not found in data.")
+
+    Y = data[var].to_numpy(dtype=float)
+    if not np.all(np.isfinite(Y)):
+        raise ValueError(
+            f"Variable '{var}' contains NaN or inf values. All values must be finite."
+        )
+
+    coord_info = resolve_spur_coords(
+        data=data,
+        use_rows=np.ones(len(data), dtype=bool),
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+    )
+
+    distmat = get_distmat_normalized(coord_info["coords"], latlon=coord_info["latlong"])
+    n = distmat.shape[0]
+    if q >= n:
+        raise ValueError(f"q={q} must be less than n={n}. Use q <= {n - 1}.")
+    if q < 1:
+        raise ValueError(f"q={q} must be >= 1.")
+    if nrep < 1:
+        raise ValueError(f"nrep={nrep} must be >= 1.")
+
+    emat = np.random.default_rng(seed).standard_normal((q, nrep))
     q = emat.shape[0]
     # n = distmat.shape[0] # DG unused
 
@@ -407,25 +456,72 @@ def spatial_i1_test(
     )
 
 
-def spatial_i0_test(
-    Y: np.ndarray, distmat: np.ndarray, emat: np.ndarray
+def spurtest_i0(
+    var: str,
+    data: pd.DataFrame,
+    *,
+    lon: str | None = None,
+    lat: str | None = None,
+    coords_euclidean: Sequence[str] | None = None,
+    q: int = 15,
+    nrep: int = 100000,
+    seed: int = 42,
 ) -> SpurTestResult:
     """
-    Test H0: I(0) (stationarity) for variable Y.
+    Test H0: I(0) (stationarity) for a single variable.
 
     Parameters
     ----------
-    Y : ndarray (n,)
+    var : str
         Variable to test
-    distmat : ndarray (n, n)
-        Normalized distance matrix
-    emat : ndarray (q, nrep)
+    data : DataFrame
+        Input data
+    lon, lat : str, optional
+        Geographic coordinate column names
+    coords_euclidean : sequence of str, optional
+        Euclidean coordinate column names
+    q : int, default 15
+        Number of low-frequency weights
+    nrep : int, default 100000
         Monte Carlo draws
+    seed : int, default 42
+        Random seed
 
     Returns
     -------
     SpurTestResult
     """
+    if not isinstance(data, pd.DataFrame):
+        raise ValueError("`data` must be a pandas DataFrame.")
+    if not isinstance(var, str) or not var:
+        raise ValueError("`var` must be a non-empty column name.")
+    if var not in data.columns:
+        raise ValueError(f"Variable '{var}' not found in data.")
+
+    Y = data[var].to_numpy(dtype=float)
+    if not np.all(np.isfinite(Y)):
+        raise ValueError(
+            f"Variable '{var}' contains NaN or inf values. All values must be finite."
+        )
+
+    coord_info = resolve_spur_coords(
+        data=data,
+        use_rows=np.ones(len(data), dtype=bool),
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+    )
+
+    distmat = get_distmat_normalized(coord_info["coords"], latlon=coord_info["latlong"])
+    n = distmat.shape[0]
+    if q >= n:
+        raise ValueError(f"q={q} must be less than n={n}. Use q <= {n - 1}.")
+    if q < 1:
+        raise ValueError(f"q={q} must be >= 1.")
+    if nrep < 1:
+        raise ValueError(f"nrep={nrep} must be >= 1.")
+
+    emat = np.random.default_rng(seed).standard_normal((q, nrep))
     q = emat.shape[0]
     # n = distmat.shape[0] # DG unused
 
@@ -573,17 +669,48 @@ def get_ha_parm_I1_residual(
     return c
 
 
-# TODO(rename)
-def spatial_i1_test_residual(
-    Y: np.ndarray, X_in: np.ndarray, distmat: np.ndarray, emat: np.ndarray
+def spurtest_i1resid(
+    formula: str,
+    data: pd.DataFrame,
+    *,
+    lon: str | None = None,
+    lat: str | None = None,
+    coords_euclidean: Sequence[str] | None = None,
+    q: int = 15,
+    nrep: int = 100000,
+    seed: int = 42,
 ) -> SpurTestResult:
     """
-    Test H0: I(1) for residuals of regression Y ~ X.
+    Test H0: I(1) for regression residuals.
 
     Note: The test uses the projection matrix M = I - X(X'X)^(-1)X' built into
     the covariance, NOT the OLS residuals directly. The test statistic uses
     Y - mean(Y), and the covariance accounts for the regression structure.
     """
+    if not isinstance(data, pd.DataFrame):
+        raise ValueError("`data` must be a pandas DataFrame.")
+
+    parsed = parse_residual_formula(formula, data, "spurtest_i1resid()")
+    coord_info = resolve_spur_coords(
+        data=data,
+        use_rows=parsed["use_rows"],
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+    )
+
+    distmat = get_distmat_normalized(coord_info["coords"], latlon=coord_info["latlong"])
+    n = distmat.shape[0]
+    if q >= n:
+        raise ValueError(f"q={q} must be less than n={n}. Use q <= {n - 1}.")
+    if q < 1:
+        raise ValueError(f"q={q} must be >= 1.")
+    if nrep < 1:
+        raise ValueError(f"nrep={nrep} must be >= 1.")
+
+    Y = parsed["Y"].reshape(-1)
+    X_in = parsed["X_in"]
+    emat = np.random.default_rng(seed).standard_normal((q, nrep))
     q = emat.shape[0]
     n = distmat.shape[0]
 
@@ -640,10 +767,42 @@ def spatial_i1_test_residual(
 
 
 # TODO(rename)
-def spatial_i0_test_residual(
-    Y: np.ndarray, X_in: np.ndarray, distmat: np.ndarray, emat: np.ndarray
+def spurtest_i0resid(
+    formula: str,
+    data: pd.DataFrame,
+    *,
+    lon: str | None = None,
+    lat: str | None = None,
+    coords_euclidean: Sequence[str] | None = None,
+    q: int = 15,
+    nrep: int = 100000,
+    seed: int = 42,
 ) -> SpurTestResult:
-    """Test H0: I(0) for residuals of regression Y ~ X."""
+    """Test H0: I(0) for regression residuals."""
+    if not isinstance(data, pd.DataFrame):
+        raise ValueError("`data` must be a pandas DataFrame.")
+
+    parsed = parse_residual_formula(formula, data, "spurtest_i0resid()")
+    coord_info = resolve_spur_coords(
+        data=data,
+        use_rows=parsed["use_rows"],
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+    )
+
+    distmat = get_distmat_normalized(coord_info["coords"], latlon=coord_info["latlong"])
+    n = distmat.shape[0]
+    if q >= n:
+        raise ValueError(f"q={q} must be less than n={n}. Use q <= {n - 1}.")
+    if q < 1:
+        raise ValueError(f"q={q} must be >= 1.")
+    if nrep < 1:
+        raise ValueError(f"nrep={nrep} must be >= 1.")
+
+    Y = parsed["Y"].reshape(-1)
+    X_in = parsed["X_in"]
+    emat = np.random.default_rng(seed).standard_normal((q, nrep))
     q = emat.shape[0]
     n = distmat.shape[0]
 
@@ -729,93 +888,90 @@ def spatial_i0_test_residual(
 
 
 def spurtest(
-    df: pd.DataFrame,
-    test_type: Literal["i1", "i0", "i1resid", "i0resid"],
-    varname: str,
-    coord_cols: List[str],
-    indepvars: Optional[List[str]] = None,
+    formula: str,
+    data: pd.DataFrame,
+    *,
+    test: Literal["i1", "i0", "i1resid", "i0resid"],
+    lon: str | None = None,
+    lat: str | None = None,
+    coords_euclidean: Sequence[str] | None = None,
     q: int = 15,
     nrep: int = 100000,
-    latlon: bool = True,
-    seed: Optional[int] = None,
+    seed: int = 42,
 ) -> SpurTestResult:
     """
-    Main user-facing function for SPUR diagnostic tests.
+    Selector wrapper for the four public SPUR diagnostic tests.
 
     Parameters
     ----------
-    df : DataFrame
+    formula : str
+        Formula string or single variable string
+    data : DataFrame
         Input data
-    test_type : Literal["i1", "i0", "i1resid", "i0resid"]
-        One of 'i1', 'i0', 'i1resid', 'i0resid'
-    varname : str
-        Variable to test (dependent variable for residual tests)
-    coord_cols : list of str
-        [lat_col, lon_col] or [x_col, y_col]
-    indepvars : list of str, optional
-        Independent variables (for residual tests)
+    test : Literal["i1", "i0", "i1resid", "i0resid"]
+        Which SPUR test to run
+    lon, lat : str, optional
+        Geographic coordinate column names
+    coords_euclidean : sequence of str, optional
+        Euclidean coordinate column names
     q : int, default 15
-        Number of low-frequency weights (eigenvectors)
+        Number of low-frequency weights
     nrep : int, default 100000
         Monte Carlo draws
-    latlon : bool, default True
-        If True, use Haversine distance
-    seed : int, optional
-        Random seed for reproducibility
+    seed : int, default 42
+        Random seed
 
     Returns
     -------
     SpurTestResult
     """
-    # Validate inputs
-    if test_type not in ("i1", "i0", "i1resid", "i0resid"):
-        raise ValueError(
-            f"Unknown test_type: {test_type}. Use 'i1', 'i0', 'i1resid', or 'i0resid'."
+    if test == "i0":
+        parsed = parse_single_var_formula(formula, data, "spurtest()")
+        return spurtest_i0(
+            parsed["var"],
+            data,
+            lon=lon,
+            lat=lat,
+            coords_euclidean=coords_euclidean,
+            q=q,
+            nrep=nrep,
+            seed=seed,
         )
-
-    # Extract data
-    coords = df[coord_cols].values
-    Y = df[varname].values
-
-    if not np.all(np.isfinite(Y)):
-        raise ValueError(
-            f"Variable '{varname}' contains NaN or inf values. "
-            "All values must be finite before running spurtest."
+    if test == "i1":
+        parsed = parse_single_var_formula(formula, data, "spurtest()")
+        return spurtest_i1(
+            parsed["var"],
+            data,
+            lon=lon,
+            lat=lat,
+            coords_euclidean=coords_euclidean,
+            q=q,
+            nrep=nrep,
+            seed=seed,
         )
-    if not np.all(np.isfinite(coords)):
-        raise ValueError("Coordinate columns contain NaN or inf values.")
-
-    # Get normalized distance matrix
-    distmat = get_distmat_normalized(coords, latlon=latlon)
-
-    n = distmat.shape[0]
-    if q >= n:
-        raise ValueError(f"q={q} must be less than n={n}. Use q <= {n - 1}.")
-
-    # Generate Monte Carlo draws
-    rng = np.random.default_rng(seed)
-    emat = rng.standard_normal((q, nrep))
-
-    # Run test
-    if test_type == "i1":
-        result = spatial_i1_test(Y, distmat, emat)
-    elif test_type == "i0":
-        result = spatial_i0_test(Y, distmat, emat)
-    elif test_type in ("i1resid", "i0resid"):
-        # Build X_in with constant (always included like Stata)
-        n = len(Y)
-        if indepvars is None or len(indepvars) == 0:
-            X_in = np.ones((n, 1))
-        else:
-            X = df[indepvars].values
-            X_in = np.column_stack([np.ones(n), X])
-
-        if test_type == "i1resid":
-            result = spatial_i1_test_residual(Y, X_in, distmat, emat)
-        else:
-            result = spatial_i0_test_residual(Y, X_in, distmat, emat)
-
-    return result
+    if test == "i0resid":
+        return spurtest_i0resid(
+            formula,
+            data,
+            lon=lon,
+            lat=lat,
+            coords_euclidean=coords_euclidean,
+            q=q,
+            nrep=nrep,
+            seed=seed,
+        )
+    if test == "i1resid":
+        return spurtest_i1resid(
+            formula,
+            data,
+            lon=lon,
+            lat=lat,
+            coords_euclidean=coords_euclidean,
+            q=q,
+            nrep=nrep,
+            seed=seed,
+        )
+    raise ValueError("`test` must be one of 'i0', 'i1', 'i0resid', 'i1resid'.")
 
 
 if __name__ == "__main__":

@@ -12,7 +12,9 @@ functionality that removes spatial unit roots from variables.
 
 import numpy as np
 import pandas as pd
+from collections.abc import Sequence
 from typing import Union, List, Optional
+from .utils import parse_transform_formula, resolve_spur_coords
 
 
 def haversine_distance(
@@ -406,47 +408,42 @@ def transform(
 
 
 def spurtransform(
-    df: pd.DataFrame,
-    varlist: Union[str, List[str]],
-    coord_cols: List[str],
-    method: str = "lbmgls",
+    formula: str,
+    data: pd.DataFrame,
+    *,
+    lon: str | None = None,
+    lat: str | None = None,
+    coords_euclidean: Sequence[str] | None = None,
+    prefix: str = "h_",
+    transformation: str = "lbmgls",
     radius: Optional[float] = None,
-    latlon: bool = True,
-    prefix: str = "d_",
-    cluster_col: Optional[str] = None,
+    clustvar: Optional[str] = None,
 ) -> pd.DataFrame:
     """
-    Apply SPUR transformation to variables in a DataFrame.
+    Apply SPUR transformation to all variables referenced by a formula.
 
-    This is the main user-facing function for spatial differencing in pandas.
-    For each variable in varlist, it applies the spatial transformation and
-    adds a new column with the specified prefix.
+    This is the main user-facing transformation API. It parses a minimal
+    additive formula, builds one transformation matrix, and applies it to each
+    referenced variable.
 
     Parameters
     ----------
-    df : DataFrame
+    formula : str
+        Formula identifying the variables to transform
+    data : DataFrame
         Input data containing variables and coordinates
-    varlist : str or list of str
-        Variable name(s) to transform
-    coord_cols : list of str, length 2
-        Column names for coordinates. Order depends on latlon:
-        - If latlon=True: [latitude_col, longitude_col]
-        - If latlon=False: [x_col, y_col]
-        Not used for method='cluster'.
-    method : str, default 'nn'
-        Transformation method:
-        - 'nn': nearest-neighbor differencing
-        - 'iso': isotropic (radius-based) differencing
-        - 'lbmgls': LBM-GLS transformation (recommended by Muller-Watson)
-        - 'cluster': within-cluster demeaning
-    radius : float, optional
-        Radius for isotropic method (required if method='iso')
-    latlon : bool, default True
-        If True, interpret coordinates as lat/lon and use Haversine distance
-    prefix : str, default 'd_'
+    lon, lat : str, optional
+        Geographic coordinate column names
+    coords_euclidean : sequence of str, optional
+        Euclidean coordinate column names
+    prefix : str, default 'h_'
         Prefix for new transformed variable names
-    cluster_col : str, optional
-        Column name for cluster identifiers (required if method='cluster')
+    transformation : str, default 'lbmgls'
+        Transformation method: 'nn', 'iso', 'lbmgls', or 'cluster'
+    radius : float, optional
+        Radius for isotropic method (required if transformation='iso')
+    clustvar : str, optional
+        Column name for cluster identifiers (required if transformation='cluster')
 
     Returns
     -------
@@ -455,66 +452,47 @@ def spurtransform(
 
     Examples
     --------
-    >>> # Nearest-neighbor transformation
-    >>> df_out = spurtransform(df, ['gdp', 'population'],
-    ...                        ['latitude', 'longitude'], method='nn')
-
-    >>> # Isotropic transformation with 100km radius
-    >>> df_out = spurtransform(df, 'income', ['lat', 'lon'],
-    ...                        method='iso', radius=100000)
-
-    >>> # LBM-GLS transformation (default recommended by Muller-Watson)
-    >>> df_out = spurtransform(df, 'income', ['lat', 'lon'],
-    ...                        method='lbmgls')
-
-    >>> # Cluster demeaning
-    >>> df_out = spurtransform(df, 'income', ['lat', 'lon'],
-    ...                        method='cluster', cluster_col='state')
+    >>> df_out = spurtransform("income ~ 1", df, lon="lon", lat="lat")
     """
     # Make a copy to avoid modifying original
-    df = df.copy()
-
-    # Ensure varlist is a list
-    if isinstance(varlist, str):
-        varlist = [varlist]
+    df = data.copy()
+    varlist = parse_transform_formula(formula, df)
 
     # Build transformation matrix once (reuse for all variables).
     # Cluster demeaning does not use coordinates, so skip coord work entirely.
-    if method == "cluster":
-        if cluster_col is None:
-            raise ValueError("cluster_col must be specified for method='cluster'")
-        if cluster_col not in df.columns:
-            raise ValueError(f"Cluster column '{cluster_col}' not found in DataFrame")
-        if df[cluster_col].isna().any():
-            raise ValueError(
-                f"Cluster column '{cluster_col}' contains missing values. "
-                "All observations must have a valid cluster label."
-            )
-        cluster = df[cluster_col].to_numpy()
+    if transformation == "cluster":
+        assert clustvar is not None, "clustvar must be specified for transformation='cluster'"
+        assert clustvar in df.columns, f"Cluster variable '{clustvar}' not found in DataFrame"
+        assert not df[clustvar].isna().any(), f"Cluster column '{clustvar}' contains missing values."
+        cluster = df[clustvar].to_numpy()
         M = cluster_matrix(cluster)
     else:
-        # All distance-based methods require coordinates.
-        coords = df[coord_cols].values
+        coord_info = resolve_spur_coords(
+            data=df,
+            use_rows=np.ones(len(df), dtype=bool),
+            lon=lon,
+            lat=lat,
+            coords_euclidean=coords_euclidean,
+        )
+
+        coords = coord_info["coords"]
+        latlon = coord_info["latlong"]
+
         if coords.shape[1] != 2:
             raise ValueError(
-                f"coord_cols must specify exactly 2 columns, got {len(coord_cols)}"
+                f"Distance-based transformations require exactly 2 coordinate columns, got {coords.shape[1]}"
             )
-        if np.any(np.isnan(coords)):
-            raise ValueError(
-                "Coordinate columns contain missing values. "
-                "Remove or impute missing coordinates before transformation."
-            )
-        if method == "nn":
+        if transformation == "nn":
             M = nn_matrix(coords, latlon=latlon)
-        elif method == "iso":
-            if radius is None:
-                raise ValueError("radius must be specified for method='iso'")
+        elif transformation == "iso":
+            assert radius is not None, "radius must be specified for transformation='iso'"
             M = iso_matrix(coords, radius, latlon=latlon)
-        elif method == "lbmgls":
+        elif transformation == "lbmgls":
             M = lbmgls_matrix(coords, latlon=latlon)
         else:
             raise ValueError(
-                f"Unknown method: {method}. Use 'nn', 'iso', 'lbmgls', or 'cluster'."
+                f"Unknown transformation: {transformation}. "
+                "Use 'nn', 'iso', 'lbmgls', or 'cluster'."
             )
 
     # Transform each variable

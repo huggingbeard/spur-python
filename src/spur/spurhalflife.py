@@ -11,17 +11,17 @@ Reference: Becker, Boll, Voth (2025) SPUR Stata Package
 
 import numpy as np
 import pandas as pd
-from typing import List, Optional
+from collections.abc import Sequence
 from dataclasses import dataclass
 from scipy.special import gamma as gamma_func
-
-from spur import get_distance_matrix
+from .spurtransform import get_distance_matrix
 from .spurtest import (
     get_R,
     get_sigma_dm,
     getcbar,
     _cholesky_upper,
 )
+from .utils import resolve_spur_coords
 
 
 @dataclass
@@ -31,16 +31,15 @@ class HalfLifeResult:
     ci_lower: float  # Lower bound of CI
     ci_upper: float  # Upper bound (inf if unbounded)
     max_dist: float  # Max pairwise distance in sample (for unit conversion)
-    level: float  # Confidence level (e.g., 0.95)
+    level: float  # Confidence level in percent (e.g., 95)
     normdist: bool  # If True, CI is in fractions of max_dist; else meters
 
     def summary(self) -> str:
         """Format results for display."""
         units = "fractions of max distance" if self.normdist else "meters"
-        level_pct = int(self.level * 100)
         upper_str = "inf" if np.isinf(self.ci_upper) else f"{self.ci_upper:.4f}"
         lines = [
-            f"Spatial half-life {level_pct}% confidence interval ({units})",
+            f"Spatial half-life {self.level:g}% confidence interval ({units})",
             "-" * 45,
             f"Lower bound: {self.ci_lower:.4f}",
             f"Upper bound: {upper_str}",
@@ -199,15 +198,17 @@ def spatial_persistence(
 
 
 def spurhalflife(
-    df: pd.DataFrame,
-    varname: str,
-    coord_cols: List[str],
+    var: str,
+    data: pd.DataFrame,
+    *,
+    lon: str | None = None,
+    lat: str | None = None,
+    coords_euclidean: Sequence[str] | None = None,
     q: int = 15,
     nrep: int = 100000,
-    level: float = 0.95,
-    latlon: bool = True,
+    level: float = 95,
     normdist: bool = False,
-    seed: Optional[int] = None,
+    seed: int = 42,
 ) -> HalfLifeResult:
     """
     Compute confidence interval for spatial half-life.
@@ -216,20 +217,20 @@ def spurhalflife(
 
     Parameters
     ----------
-    df : DataFrame
+    data : DataFrame
         Input data
-    varname : str
+    var : str
         Variable to analyze
-    coord_cols : list of str
-        [lat_col, lon_col] or [x_col, y_col]
+    lon, lat : str, optional
+        Geographic coordinate column names
+    coords_euclidean : sequence of str, optional
+        Euclidean coordinate column names
     q : int, default 15
         Number of low-frequency weights
     nrep : int, default 100000
         Monte Carlo draws
-    level : float, default 0.95
-        Confidence level
-    latlon : bool, default True
-        If True, use Haversine distance
+    level : float, default 95
+        Confidence level in percent
     normdist : bool, default False
         If True, return CI in fractions of max pairwise distance.
         If False, return in meters (if latlon) or coordinate units.
@@ -241,16 +242,34 @@ def spurhalflife(
     HalfLifeResult
     """
     # Validate parameters
-    if not (0 < level < 1):
-        raise ValueError(f"level={level} must be strictly between 0 and 1.")
+    if not isinstance(data, pd.DataFrame):
+        raise ValueError("`data` must be a pandas DataFrame.")
+    if not isinstance(var, str) or not var:
+        raise ValueError("`var` must be a non-empty column name.")
+    if var not in data.columns:
+        raise ValueError(f"Variable '{var}' not found in data.")
+    if not (0 < level < 100):
+        raise ValueError(f"level={level} must be strictly between 0 and 100.")
     if q < 1:
         raise ValueError(f"q={q} must be >= 1.")
     if nrep < 1:
         raise ValueError(f"nrep={nrep} must be >= 1.")
 
-    # Extract data
-    coords = df[coord_cols].values
-    Y = df[varname].values
+    Y = data[var].to_numpy(dtype=float)
+    if not np.all(np.isfinite(Y)):
+        raise ValueError(
+            f"Variable '{var}' contains NaN or inf values. All values must be finite."
+        )
+
+    coord_info = resolve_spur_coords(
+        data=data,
+        use_rows=np.ones(len(data), dtype=bool),
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+    )
+    coords = coord_info["coords"]
+    latlon = coord_info["latlong"]
 
     # Center Y
     Y = Y - Y.mean()
@@ -281,11 +300,10 @@ def spurhalflife(
         max_dist = distmat_raw.max()  # in coordinate units
 
     # Generate MC draws
-    rng = np.random.default_rng(seed)
-    emat = rng.standard_normal((q, nrep))
+    emat = np.random.default_rng(seed).standard_normal((q, nrep))
 
     # Compute CI (in normalized units)
-    ci_l, ci_u = spatial_persistence(Y, distmat, emat, level)
+    ci_l, ci_u = spatial_persistence(Y, distmat, emat, level / 100)
 
     # Upper bound check: if at the tail (100), treat as infinity
     if ci_u >= 100:
@@ -297,7 +315,11 @@ def spurhalflife(
         ci_u = ci_u * max_dist if not np.isinf(ci_u) else ci_u
 
     return HalfLifeResult(
-        ci_lower=ci_l, ci_upper=ci_u, max_dist=max_dist, level=level, normdist=normdist
+        ci_lower=ci_l,
+        ci_upper=ci_u,
+        max_dist=max_dist,
+        level=level,
+        normdist=normdist,
     )
 
 

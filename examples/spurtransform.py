@@ -11,17 +11,37 @@ if __name__ == "__main__":
     df = standardize(df, ["am", "fracblack"])
 
     # LBM-GLS transformation (recommended default)
-    transformed_df = spurtransform(df, ["am"], ["lat", "lon"], method="lbmgls")
+    transformed_df = spurtransform(
+        "am ~ 1",
+        df,
+        lon="lon",
+        lat="lat",
+        transformation="lbmgls",
+    )
 
     # Nearest-neighbor differencing
-    transformed_df = spurtransform(df, ["am"], ["lat", "lon"], method="nn")
+    transformed_df = spurtransform(
+        "am ~ 1",
+        df,
+        lon="lon",
+        lat="lat",
+        transformation="nn",
+    )
 
     # Isotropic (200km radius)
     transformed_df = spurtransform(
-        df, ["am"], ["lat", "lon"], method="iso", radius=200000
+        "am ~ 1",
+        df,
+        lon="lon",
+        lat="lat",
+        transformation="iso",
+        radius=200000,
     )
 
     # Within-cluster demeaning
     transformed_df = spurtransform(
-        df, ["am"], ["lat", "lon"], method="cluster", cluster_col="state"
+        "am ~ 1",
+        df,
+        transformation="cluster",
+        clustvar="state",
     )

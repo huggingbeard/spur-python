@@ -8,15 +8,25 @@ from .core import (
     spurtest_i1resid,
     spurtransform,
 )
-from .types import HalfLifeResult, SpurResult, SpurTestResult
+from .types import (
+    Fits,
+    HalfLifeResult,
+    PipelineResult,
+    RegressionResult,
+    TestResult,
+    Tests,
+)
 from .utils.data import load_chetty_data, standardize
 
 __all__ = [
     "load_chetty_data",
     "standardize",
     "HalfLifeResult",
-    "SpurTestResult",
-    "SpurResult",
+    "TestResult",
+    "RegressionResult",
+    "Tests",
+    "Fits",
+    "PipelineResult",
     "spurtest_i1",
     "spurtest_i0",
     "spurtest_i1resid",

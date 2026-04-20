@@ -6,7 +6,14 @@ import pandas as pd
 from scpc import scpc
 import statsmodels.formula.api as smf
 
-from .types import HalfLifeResult, SpurResult, SpurTestResult
+from .types import (
+    Fits,
+    HalfLifeResult,
+    PipelineResult,
+    RegressionResult,
+    TestResult,
+    Tests,
+)
 from .utils.dist import (
     get_cbar,
     get_distance_matrix,
@@ -49,7 +56,7 @@ def spurtest_i1(
     q: int = 15,
     nrep: int = 100000,
     seed: int = 42,
-) -> SpurTestResult:
+) -> TestResult:
     """Conduct the spatial I(1) unit-root test for a single variable.
 
     Use this function when you want to test one variable directly, without using
@@ -68,7 +75,7 @@ def spurtest_i1(
         seed: Random seed used to generate the simulation draws.
 
     Returns:
-        A `SpurTestResult` containing the LR statistic, p-value, critical values,
+        A `TestResult` containing the LR statistic, p-value, critical values,
         and the calibrated local-alternative parameter.
 
     Raises:
@@ -146,9 +153,7 @@ def spurtest_i1(
     LR = float((P.T @ omi_ho @ P) / (P.T @ omi_ha @ P))
     pvalue = float(np.mean(lr_ho > LR))
 
-    return SpurTestResult(
-        test_type="i1", LR=LR, pvalue=pvalue, cv=cv_vec, ha_param=ha_parm
-    )
+    return TestResult(test_type="i1", LR=LR, pvalue=pvalue, cv=cv_vec, ha_param=ha_parm)
 
 
 def spurtest_i0(
@@ -161,7 +166,7 @@ def spurtest_i0(
     q: int = 15,
     nrep: int = 100000,
     seed: int = 42,
-) -> SpurTestResult:
+) -> TestResult:
     """Conduct the spatial I(0) test for a single variable.
 
     Use this function when you want to test one variable directly, without using
@@ -180,7 +185,7 @@ def spurtest_i0(
         seed: Random seed used to generate the simulation draws.
 
     Returns:
-        A `SpurTestResult` containing the LR statistic, p-value, critical values,
+        A `TestResult` containing the LR statistic, p-value, critical values,
         and the calibrated local-alternative parameter.
 
     Raises:
@@ -289,9 +294,7 @@ def spurtest_i0(
     cvalue = cvalue_mat.max(axis=0)
     pvalue = float(pvalue_vec.max())
 
-    return SpurTestResult(
-        test_type="i0", LR=LR, pvalue=pvalue, cv=cvalue, ha_param=ha_parm
-    )
+    return TestResult(test_type="i0", LR=LR, pvalue=pvalue, cv=cvalue, ha_param=ha_parm)
 
 
 def spurtest_i1resid(
@@ -304,7 +307,7 @@ def spurtest_i1resid(
     q: int = 15,
     nrep: int = 100000,
     seed: int = 42,
-) -> SpurTestResult:
+) -> TestResult:
     """Conduct the spatial I(1) residual test for a regression formula.
 
     Use this function when you want to test the residual dependence implied by a
@@ -324,7 +327,7 @@ def spurtest_i1resid(
         seed: Random seed used to generate the simulation draws.
 
     Returns:
-        A `SpurTestResult` containing the LR statistic, p-value, critical values,
+        A `TestResult` containing the LR statistic, p-value, critical values,
         and the calibrated local-alternative parameter.
 
     Raises:
@@ -415,7 +418,7 @@ def spurtest_i1resid(
     LR = float((P.T @ omi_ho @ P) / (P.T @ omi_ha @ P))
     pvalue = float(np.mean(lr_ho > LR))
 
-    return SpurTestResult(
+    return TestResult(
         test_type="i1resid", LR=LR, pvalue=pvalue, cv=cv_vec, ha_param=ha_parm
     )
 
@@ -430,7 +433,7 @@ def spurtest_i0resid(
     q: int = 15,
     nrep: int = 100000,
     seed: int = 42,
-) -> SpurTestResult:
+) -> TestResult:
     """Conduct the spatial I(0) residual test for a regression formula.
 
     Use this function when you want to test the residual dependence implied by a
@@ -450,7 +453,7 @@ def spurtest_i0resid(
         seed: Random seed used to generate the simulation draws.
 
     Returns:
-        A `SpurTestResult` containing the LR statistic, p-value, critical values,
+        A `TestResult` containing the LR statistic, p-value, critical values,
         and the calibrated local-alternative parameter.
 
     Raises:
@@ -572,7 +575,7 @@ def spurtest_i0resid(
     cvalue = cvalue_mat.max(axis=0)
     pvalue = float(pvalue_vec.max())
 
-    return SpurTestResult(
+    return TestResult(
         test_type="i0resid", LR=LR, pvalue=pvalue, cv=cvalue, ha_param=ha_parm
     )
 
@@ -588,7 +591,7 @@ def spurtest(
     q: int = 15,
     nrep: int = 100000,
     seed: int = 42,
-) -> SpurTestResult:
+) -> TestResult:
     """Run one of the four public SPUR diagnostic tests.
 
     Use this wrapper when you want one entrypoint for all test types. For
@@ -610,7 +613,7 @@ def spurtest(
         seed: Random seed used to generate the simulation draws.
 
     Returns:
-        A `SpurTestResult` for the selected test.
+        A `TestResult` for the selected test.
 
     Raises:
         ValueError: If `test` is invalid or if the selected test receives invalid
@@ -918,12 +921,8 @@ def spur(
     avc: float = 0.03,
     uncond: bool = False,
     cvs: bool = False,
-) -> SpurResult:
-    """Run the full SPUR pipeline and pass the final model to `scpc()`.
-
-    This function runs the two single-variable diagnostics on the dependent
-    variable, chooses either the levels branch or the transformed branch, fits the
-    regression, and then passes the fitted model to `scpc()`.
+) -> PipelineResult:
+    """Run the full SPUR pipeline and return all major outputs.
 
     Args:
         formula: Two-sided regression formula for the model of interest.
@@ -940,9 +939,7 @@ def spur(
         cvs: Passed through to `scpc()`.
 
     Returns:
-        A `SpurResult` containing the branch decision, the two diagnostic test
-        results, the fitted model, the `scpc()` result, the data used for
-        estimation, and the formula ultimately fit.
+        A `PipelineResult` containing the test results and both fitted branches.
 
     Raises:
         ValueError: If `formula` is not two-sided or does not contain a dependent
@@ -956,8 +953,8 @@ def spur(
         >>> df = df[["am", "fracblack", "lat", "lon"]].dropna()
         >>> df = standardize(df, ["am", "fracblack"])
         >>> result = spur("am ~ fracblack", df, lon="lon", lat="lat", q=10, nrep=500, seed=42)
-        >>> result.branch
-        >>> result.formula_used
+        >>> result.tests.i0
+        >>> result.fits.levels.model
     """
     if not isinstance(formula, str) or "~" not in formula:
         raise ValueError("`formula` must be two-sided, e.g. `y ~ x1 + x2`.")
@@ -968,7 +965,7 @@ def spur(
             "`formula` must have a dependent variable on the left-hand side."
         )
 
-    test_i0 = spurtest_i0(
+    i0 = spurtest_i0(
         depvar,
         data,
         lon=lon,
@@ -978,7 +975,7 @@ def spur(
         nrep=nrep,
         seed=seed,
     )
-    test_i1 = spurtest_i1(
+    i1 = spurtest_i1(
         depvar,
         data,
         lon=lon,
@@ -989,27 +986,31 @@ def spur(
         seed=seed,
     )
 
-    if test_i1.pvalue < 0.1 and test_i0.pvalue >= 0.1:
-        branch = "levels"
-        data_used = data
-        formula_used = formula
-    else:
-        branch = "transformed"
-        data_used = spurtransform(
-            formula,
-            data,
-            lon=lon,
-            lat=lat,
-            coords_euclidean=coords_euclidean,
-            prefix="h_",
-            transformation="lbmgls",
-        )
-        formula_used = rewrite_formula_with_prefix(formula, "h_")
+    i0resid = spurtest_i0resid(
+        formula,
+        data,
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+        q=q,
+        nrep=nrep,
+        seed=seed,
+    )
+    i1resid = spurtest_i1resid(
+        formula,
+        data,
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+        q=q,
+        nrep=nrep,
+        seed=seed,
+    )
 
-    model = smf.ols(formula_used, data=data_used).fit()
-    scpc_result = scpc(
-        model,
-        data_used,
+    levels_model = smf.ols(formula, data=data).fit()
+    levels_scpc = scpc(
+        levels_model,
+        data,
         lon=lon,
         lat=lat,
         coords_euclidean=coords_euclidean,
@@ -1018,12 +1019,43 @@ def spur(
         cvs=cvs,
     )
 
-    return SpurResult(
-        branch=branch,
-        test_i0=test_i0,
-        test_i1=test_i1,
-        model=model,
-        scpc=scpc_result,
-        data_used=data_used,
-        formula_used=formula_used,
+    transformed_data = spurtransform(
+        formula,
+        data,
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+        prefix="h_",
+        transformation="lbmgls",
+    )
+    transformed_formula = rewrite_formula_with_prefix(formula, "h_")
+    transformed_model = smf.ols(transformed_formula, data=transformed_data).fit()
+    transformed_scpc = scpc(
+        transformed_model,
+        transformed_data,
+        lon=lon,
+        lat=lat,
+        coords_euclidean=coords_euclidean,
+        avc=avc,
+        uncond=uncond,
+        cvs=cvs,
+    )
+
+    return PipelineResult(
+        tests=Tests(
+            i0=i0,
+            i1=i1,
+            i0resid=i0resid,
+            i1resid=i1resid,
+        ),
+        fits=Fits(
+            levels=RegressionResult(
+                model=levels_model,
+                scpc=levels_scpc,
+            ),
+            transformed=RegressionResult(
+                model=transformed_model,
+                scpc=transformed_scpc,
+            ),
+        ),
     )

@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from spur import (
-    SpurTestResult,
+    TestResult,
     load_chetty_data,
     spurtest,
     spurtest_i0,
@@ -86,7 +86,7 @@ def test_spurtest_validates_q_and_formats_summary(chetty_df: pd.DataFrame) -> No
 
     result = spurtest_i1("am", chetty_df, lon="lon", lat="lat", q=10, nrep=200, seed=42)
 
-    assert isinstance(result, SpurTestResult)
+    assert isinstance(result, TestResult)
     assert np.isfinite(result.LR)
     assert 0.0 <= result.pvalue <= 1.0
     assert result.cv.shape == (3,)
@@ -184,8 +184,8 @@ def test_spurtest_i_wrappers_take_plain_variable_strings(
     i0 = spurtest_i0("am", chetty_df, lon="lon", lat="lat", q=10, nrep=200, seed=42)
     i1 = spurtest_i1("am", chetty_df, lon="lon", lat="lat", q=10, nrep=200, seed=42)
 
-    assert isinstance(i0, SpurTestResult)
-    assert isinstance(i1, SpurTestResult)
+    assert isinstance(i0, TestResult)
+    assert isinstance(i1, TestResult)
 
 
 def test_spurtest_selector_rejects_rhs_for_single_variable_tests(

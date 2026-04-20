@@ -1,18 +1,25 @@
 from __future__ import annotations
 from dataclasses import dataclass
+from typing import Any
 import numpy as np
-import pandas as pd
 
 
-@dataclass
-class SpurTestResult:
-    """Container for spurtest results."""
+@dataclass(slots=True)
+class TestResult:
+    """One SPUR test result."""
+
+    __test__ = False
 
     test_type: str
+    """Name of the test that was run."""
     LR: float
+    """Observed value of the test statistic."""
     pvalue: float
+    """P-value associated with the test statistic."""
     cv: np.ndarray
+    """Reference critical values for the test."""
     ha_param: float
+    """Estimated local-alternative tuning parameter."""
 
     def summary(self) -> str:
         """Format test results for display."""
@@ -32,13 +39,18 @@ class SpurTestResult:
 
 @dataclass
 class HalfLifeResult:
-    """Container for spurhalflife results."""
+    """Spatial half-life interval result."""
 
     ci_lower: float
+    """Lower end of the reported interval."""
     ci_upper: float
+    """Upper end of the reported interval."""
     max_dist: float
+    """Largest observed distance in the sample."""
     level: float
+    """Confidence level used for the interval."""
     normdist: bool
+    """Whether distances were normalized before reporting."""
 
     def summary(self) -> str:
         """Format results for display."""
@@ -55,14 +67,45 @@ class HalfLifeResult:
         return "\n".join(lines)
 
 
-@dataclass
-class SpurResult:
-    """Container for the high-level SPUR pipeline output."""
+@dataclass(slots=True)
+class Tests:
+    """The four SPUR diagnostics returned by `spur()`."""
 
-    branch: str
-    test_i0: SpurTestResult
-    test_i1: SpurTestResult
-    model: object
-    scpc: object
-    data_used: pd.DataFrame
-    formula_used: str
+    __test__ = False
+
+    i0: TestResult
+    """I(0) test run on the dependent variable in levels."""
+    i1: TestResult
+    """I(1) test run on the dependent variable in levels."""
+    i0resid: TestResult
+    """I(0) test run on the regression residuals."""
+    i1resid: TestResult
+    """I(1) test run on the regression residuals."""
+
+
+@dataclass(slots=True)
+class RegressionResult:
+    model: Any
+    """Fitted regression model for this branch."""
+    scpc: Any
+    """SCPC output computed from that fitted model."""
+
+
+@dataclass(slots=True)
+class Fits:
+    """The two fitted regression branches returned by `spur()`."""
+
+    levels: RegressionResult
+    """Fit based on the original variables."""
+    transformed: RegressionResult
+    """Fit based on the transformed variables."""
+
+
+@dataclass(slots=True)
+class PipelineResult:
+    """Full output of `spur()`."""
+
+    tests: Tests
+    """All diagnostic test results."""
+    fits: Fits
+    """Both fitted regression branches."""

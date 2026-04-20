@@ -425,40 +425,50 @@ def spurtransform(
     radius: Optional[float] = None,
     clustvar: Optional[str] = None,
 ) -> pd.DataFrame:
-    """
-    Apply SPUR transformation to all variables referenced by a formula.
+    """Apply a SPUR transformation to the variables referenced in a formula.
 
-    This is the main user-facing transformation API. It parses a minimal
-    additive formula, builds one transformation matrix, and applies it to each
-    referenced variable.
+    Use this function when you want transformed versions of the variables in a
+    model formula. The function builds one transformation matrix and applies it to
+    each referenced variable, adding new columns with the chosen prefix.
 
-    Parameters
-    ----------
-    formula : str
-        Formula identifying the variables to transform
-    data : DataFrame
-        Input data containing variables and coordinates
-    lon, lat : str, optional
-        Geographic coordinate column names
-    coords_euclidean : sequence of str, optional
-        Euclidean coordinate column names
-    prefix : str, default 'h_'
-        Prefix for new transformed variable names
-    transformation : str, default 'lbmgls'
-        Transformation method: 'nn', 'iso', 'lbmgls', or 'cluster'
-    radius : float, optional
-        Radius for isotropic method (required if transformation='iso')
-    clustvar : str, optional
-        Column name for cluster identifiers (required if transformation='cluster')
+    Args:
+        formula: Formula identifying the variables to transform.
+        data: DataFrame containing the variables and any required coordinate or
+            cluster columns.
+        lon: Name of the longitude column. Use together with `lat`.
+        lat: Name of the latitude column. Use together with `lon`.
+        coords_euclidean: Names of Euclidean coordinate columns. Use instead of
+            `lon` and `lat`.
+        prefix: Prefix added to each transformed variable name.
+        transformation: Transformation method. Must be one of `"nn"`, `"iso"`,
+            `"lbmgls"`, or `"cluster"`.
+        radius: Radius used by the isotropic transformation. Required when
+            `transformation="iso"`.
+        clustvar: Cluster label column used by the cluster transformation.
+            Required when `transformation="cluster"`.
 
-    Returns
-    -------
-    DataFrame
-        Copy of input DataFrame with new transformed columns added
+    Returns:
+        A copy of `data` with transformed columns added.
 
-    Examples
-    --------
-    >>> df_out = spurtransform("income ~ 1", df, lon="lon", lat="lat")
+    Raises:
+        ValueError: If the formula is invalid, variables are missing, coordinates
+            are invalid, or the transformation name is unknown.
+        AssertionError: If a required `radius` or `clustvar` is missing, or if the
+            cluster column contains missing values.
+
+    Example:
+        >>> from spur import load_chetty_data, standardize, spurtransform
+        >>> df = load_chetty_data()
+        >>> df = df[["am", "fracblack", "lat", "lon"]].dropna()
+        >>> df = standardize(df, ["am", "fracblack"])
+        >>> df_out = spurtransform(
+        ...     "am ~ fracblack",
+        ...     df,
+        ...     lon="lon",
+        ...     lat="lat",
+        ...     transformation="lbmgls",
+        ... )
+        >>> df_out[["h_am", "h_fracblack"]].head()
     """
     # Make a copy to avoid modifying original
     df = data.copy()

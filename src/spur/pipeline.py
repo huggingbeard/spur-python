@@ -35,7 +35,46 @@ def spur(
     uncond: bool = False,
     cvs: bool = False,
 ) -> SpurResult:
-    """Run the full SPUR workflow and pass the final model to `scpc()`."""
+    """Run the full SPUR pipeline and pass the final model to `scpc()`.
+
+    This function runs the two single-variable diagnostics on the dependent
+    variable, chooses either the levels branch or the transformed branch, fits the
+    regression, and then passes the fitted model to `scpc()`.
+
+    Args:
+        formula: Two-sided regression formula for the model of interest.
+        data: DataFrame containing the model variables and coordinate columns.
+        lon: Name of the longitude column. Use together with `lat`.
+        lat: Name of the latitude column. Use together with `lon`.
+        coords_euclidean: Names of Euclidean coordinate columns. Use instead of
+            `lon` and `lat`.
+        q: Number of low-frequency weights used in the SPUR tests.
+        nrep: Number of Monte Carlo draws used in the SPUR tests.
+        seed: Random seed used to generate the SPUR simulation draws.
+        avc: SCPC variance-covariance tuning parameter.
+        uncond: Passed through to `scpc()`.
+        cvs: Passed through to `scpc()`.
+
+    Returns:
+        A `SpurResult` containing the branch decision, the two diagnostic test
+        results, the fitted model, the `scpc()` result, the data used for
+        estimation, and the formula ultimately fit.
+
+    Raises:
+        ValueError: If `formula` is not two-sided or does not contain a dependent
+            variable on the left-hand side.
+        ValueError: Propagated from the SPUR test and transformation steps if the
+            inputs are invalid.
+
+    Example:
+        >>> from spur import load_chetty_data, standardize, spur
+        >>> df = load_chetty_data()
+        >>> df = df[["am", "fracblack", "lat", "lon"]].dropna()
+        >>> df = standardize(df, ["am", "fracblack"])
+        >>> result = spur("am ~ fracblack", df, lon="lon", lat="lat", q=10, nrep=500, seed=42)
+        >>> result.branch
+        >>> result.formula_used
+    """
     if not isinstance(formula, str) or "~" not in formula:
         raise ValueError("`formula` must be two-sided, e.g. `y ~ x1 + x2`.")
 

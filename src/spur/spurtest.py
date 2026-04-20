@@ -355,29 +355,39 @@ def spurtest_i1(
     nrep: int = 100000,
     seed: int = 42,
 ) -> SpurTestResult:
-    """
-    Test H0: I(1) (unit root) for a single variable.
+    """Conduct the spatial I(1) unit-root test for a single variable.
 
-    Parameters
-    ----------
-    var : str
-        Variable to test
-    data : DataFrame
-        Input data
-    lon, lat : str, optional
-        Geographic coordinate column names
-    coords_euclidean : sequence of str, optional
-        Euclidean coordinate column names
-    q : int, default 15
-        Number of low-frequency weights
-    nrep : int, default 100000
-        Monte Carlo draws
-    seed : int, default 42
-        Random seed
+    Use this function when you want to test one variable directly, without using
+    the formula-based wrapper. Provide either longitude/latitude columns or
+    Euclidean coordinate columns.
 
-    Returns
-    -------
-    SpurTestResult
+    Args:
+        var: Name of the variable to test.
+        data: DataFrame containing the variable and coordinate columns.
+        lon: Name of the longitude column. Use together with `lat`.
+        lat: Name of the latitude column. Use together with `lon`.
+        coords_euclidean: Names of Euclidean coordinate columns. Use instead of
+            `lon` and `lat`.
+        q: Number of low-frequency weights used in the test statistic.
+        nrep: Number of Monte Carlo draws used to simulate the null distribution.
+        seed: Random seed used to generate the simulation draws.
+
+    Returns:
+        A `SpurTestResult` containing the LR statistic, p-value, critical values,
+        and the calibrated local-alternative parameter.
+
+    Raises:
+        ValueError: If `data` is not a DataFrame, `var` is missing or contains
+            non-finite values, the coordinate specification is invalid, `q` is out
+            of range, or `nrep` is less than 1.
+
+    Example:
+        >>> from spur import load_chetty_data, standardize, spurtest_i1
+        >>> df = load_chetty_data()
+        >>> df = df[["am", "lat", "lon"]].dropna()
+        >>> df = standardize(df, ["am"])
+        >>> result = spurtest_i1("am", df, lon="lon", lat="lat", q=10, nrep=500, seed=42)
+        >>> print(result.summary())
     """
     if not isinstance(data, pd.DataFrame):
         raise ValueError("`data` must be a pandas DataFrame.")
@@ -468,29 +478,39 @@ def spurtest_i0(
     nrep: int = 100000,
     seed: int = 42,
 ) -> SpurTestResult:
-    """
-    Test H0: I(0) (stationarity) for a single variable.
+    """Conduct the spatial I(0) test for a single variable.
 
-    Parameters
-    ----------
-    var : str
-        Variable to test
-    data : DataFrame
-        Input data
-    lon, lat : str, optional
-        Geographic coordinate column names
-    coords_euclidean : sequence of str, optional
-        Euclidean coordinate column names
-    q : int, default 15
-        Number of low-frequency weights
-    nrep : int, default 100000
-        Monte Carlo draws
-    seed : int, default 42
-        Random seed
+    Use this function when you want to test one variable directly, without using
+    the formula-based wrapper. Provide either longitude/latitude columns or
+    Euclidean coordinate columns.
 
-    Returns
-    -------
-    SpurTestResult
+    Args:
+        var: Name of the variable to test.
+        data: DataFrame containing the variable and coordinate columns.
+        lon: Name of the longitude column. Use together with `lat`.
+        lat: Name of the latitude column. Use together with `lon`.
+        coords_euclidean: Names of Euclidean coordinate columns. Use instead of
+            `lon` and `lat`.
+        q: Number of low-frequency weights used in the test statistic.
+        nrep: Number of Monte Carlo draws used to simulate the null distribution.
+        seed: Random seed used to generate the simulation draws.
+
+    Returns:
+        A `SpurTestResult` containing the LR statistic, p-value, critical values,
+        and the calibrated local-alternative parameter.
+
+    Raises:
+        ValueError: If `data` is not a DataFrame, `var` is missing or contains
+            non-finite values, the coordinate specification is invalid, `q` is out
+            of range, or `nrep` is less than 1.
+
+    Example:
+        >>> from spur import load_chetty_data, standardize, spurtest_i0
+        >>> df = load_chetty_data()
+        >>> df = df[["am", "lat", "lon"]].dropna()
+        >>> df = standardize(df, ["am"])
+        >>> result = spurtest_i0("am", df, lon="lon", lat="lat", q=10, nrep=500, seed=42)
+        >>> print(result.summary())
     """
     if not isinstance(data, pd.DataFrame):
         raise ValueError("`data` must be a pandas DataFrame.")
@@ -681,12 +701,48 @@ def spurtest_i1resid(
     nrep: int = 100000,
     seed: int = 42,
 ) -> SpurTestResult:
-    """
-    Test H0: I(1) for regression residuals.
+    """Conduct the spatial I(1) residual test for a regression formula.
 
-    Note: The test uses the projection matrix M = I - X(X'X)^(-1)X' built into
-    the covariance, NOT the OLS residuals directly. The test statistic uses
-    Y - mean(Y), and the covariance accounts for the regression structure.
+    Use this function when you want to test the residual dependence implied by a
+    formula such as `y ~ x1 + x2`. Provide either longitude/latitude columns or
+    Euclidean coordinate columns.
+
+    Args:
+        formula: Two-sided regression formula identifying the dependent variable
+            and covariates.
+        data: DataFrame containing the variables and coordinate columns.
+        lon: Name of the longitude column. Use together with `lat`.
+        lat: Name of the latitude column. Use together with `lon`.
+        coords_euclidean: Names of Euclidean coordinate columns. Use instead of
+            `lon` and `lat`.
+        q: Number of low-frequency weights used in the test statistic.
+        nrep: Number of Monte Carlo draws used to simulate the null distribution.
+        seed: Random seed used to generate the simulation draws.
+
+    Returns:
+        A `SpurTestResult` containing the LR statistic, p-value, critical values,
+        and the calibrated local-alternative parameter.
+
+    Raises:
+        ValueError: If `data` is not a DataFrame, `formula` is invalid, the
+            coordinate specification is invalid, the regressor matrix is
+            rank-deficient, `q` is out of range, or `nrep` is less than 1.
+
+    Example:
+        >>> from spur import load_chetty_data, standardize, spurtest_i1resid
+        >>> df = load_chetty_data()
+        >>> df = df[["am", "fracblack", "lat", "lon"]].dropna()
+        >>> df = standardize(df, ["am", "fracblack"])
+        >>> result = spurtest_i1resid(
+        ...     "am ~ fracblack",
+        ...     df,
+        ...     lon="lon",
+        ...     lat="lat",
+        ...     q=10,
+        ...     nrep=500,
+        ...     seed=42,
+        ... )
+        >>> print(result.summary())
     """
     if not isinstance(data, pd.DataFrame):
         raise ValueError("`data` must be a pandas DataFrame.")
@@ -778,7 +834,49 @@ def spurtest_i0resid(
     nrep: int = 100000,
     seed: int = 42,
 ) -> SpurTestResult:
-    """Test H0: I(0) for regression residuals."""
+    """Conduct the spatial I(0) residual test for a regression formula.
+
+    Use this function when you want to test the residual dependence implied by a
+    formula such as `y ~ x1 + x2`. Provide either longitude/latitude columns or
+    Euclidean coordinate columns.
+
+    Args:
+        formula: Two-sided regression formula identifying the dependent variable
+            and covariates.
+        data: DataFrame containing the variables and coordinate columns.
+        lon: Name of the longitude column. Use together with `lat`.
+        lat: Name of the latitude column. Use together with `lon`.
+        coords_euclidean: Names of Euclidean coordinate columns. Use instead of
+            `lon` and `lat`.
+        q: Number of low-frequency weights used in the test statistic.
+        nrep: Number of Monte Carlo draws used to simulate the null distribution.
+        seed: Random seed used to generate the simulation draws.
+
+    Returns:
+        A `SpurTestResult` containing the LR statistic, p-value, critical values,
+        and the calibrated local-alternative parameter.
+
+    Raises:
+        ValueError: If `data` is not a DataFrame, `formula` is invalid, the
+            coordinate specification is invalid, the regressor matrix is
+            rank-deficient, `q` is out of range, or `nrep` is less than 1.
+
+    Example:
+        >>> from spur import load_chetty_data, standardize, spurtest_i0resid
+        >>> df = load_chetty_data()
+        >>> df = df[["am", "fracblack", "lat", "lon"]].dropna()
+        >>> df = standardize(df, ["am", "fracblack"])
+        >>> result = spurtest_i0resid(
+        ...     "am ~ fracblack",
+        ...     df,
+        ...     lon="lon",
+        ...     lat="lat",
+        ...     q=10,
+        ...     nrep=500,
+        ...     seed=42,
+        ... )
+        >>> print(result.summary())
+    """
     if not isinstance(data, pd.DataFrame):
         raise ValueError("`data` must be a pandas DataFrame.")
 
@@ -899,31 +997,40 @@ def spurtest(
     nrep: int = 100000,
     seed: int = 42,
 ) -> SpurTestResult:
-    """
-    Selector wrapper for the four public SPUR diagnostic tests.
+    """Run one of the four public SPUR diagnostic tests.
 
-    Parameters
-    ----------
-    formula : str
-        Formula string or single variable string
-    data : DataFrame
-        Input data
-    test : Literal["i1", "i0", "i1resid", "i0resid"]
-        Which SPUR test to run
-    lon, lat : str, optional
-        Geographic coordinate column names
-    coords_euclidean : sequence of str, optional
-        Euclidean coordinate column names
-    q : int, default 15
-        Number of low-frequency weights
-    nrep : int, default 100000
-        Monte Carlo draws
-    seed : int, default 42
-        Random seed
+    Use this wrapper when you want one entrypoint for all test types. For
+    single-variable tests, pass either a bare variable name like `"am"` or
+    `"am ~ 1"`. For residual tests, pass a two-sided formula such as
+    `"am ~ fracblack"`.
 
-    Returns
-    -------
-    SpurTestResult
+    Args:
+        formula: Variable string or formula, depending on the selected test.
+        data: DataFrame containing the variables and coordinate columns.
+        test: Which SPUR test to run. Must be one of `"i0"`, `"i1"`,
+            `"i0resid"`, or `"i1resid"`.
+        lon: Name of the longitude column. Use together with `lat`.
+        lat: Name of the latitude column. Use together with `lon`.
+        coords_euclidean: Names of Euclidean coordinate columns. Use instead of
+            `lon` and `lat`.
+        q: Number of low-frequency weights used in the test statistic.
+        nrep: Number of Monte Carlo draws used to simulate the null distribution.
+        seed: Random seed used to generate the simulation draws.
+
+    Returns:
+        A `SpurTestResult` for the selected test.
+
+    Raises:
+        ValueError: If `test` is invalid or if the selected test receives invalid
+            variables, formula inputs, coordinates, or simulation settings.
+
+    Example:
+        >>> from spur import load_chetty_data, standardize, spurtest
+        >>> df = load_chetty_data()
+        >>> df = df[["am", "lat", "lon"]].dropna()
+        >>> df = standardize(df, ["am"])
+        >>> result = spurtest("am", df, test="i1", lon="lon", lat="lat", q=10, nrep=500, seed=42)
+        >>> print(result.summary())
     """
     if test == "i0":
         parsed = parse_single_var_formula(formula, data, "spurtest()")

@@ -1,80 +1,57 @@
-# TODO: we might eventually want to just export
-# the user facing main functions and keep the utils internal
+from __future__ import annotations
 
-from .data import load_chetty_data, standardize
+import sys
+from types import ModuleType
+from typing import Any
 
-from .spurtransform import (
-    haversine_distance,
-    get_distance_matrix,
-    nn_matrix,
-    iso_matrix,
-    demean_matrix,
-    get_sigma_lbm,
-    lbmgls_matrix,
-    cluster_matrix,
-    transform,
-    spurtransform,
-    get_transformation_stats,
-)
-
-from .spurhalflife import (
-    HalfLifeResult,
-    spatial_persistence,
+from .core import (
+    spur as spur_fn,
     spurhalflife,
-)
-
-from .spurtest import (
-    SpurTestResult,
-    get_distmat_normalized,
-    get_R,
-    get_sigma_dm,
-    lvech,
-    getcbar,
-    _cholesky_upper,
-    getpow_qf,
-    get_ha_parm_I1,
-    get_ha_parm_I0,
-    spatial_i1_test,
-    spatial_i0_test,
-    get_sigma_residual,
-    get_ha_parm_I1_residual,
-    spatial_i1_test_residual,
-    spatial_i0_test_residual,
     spurtest,
+    spurtest_i0,
+    spurtest_i0resid,
+    spurtest_i1,
+    spurtest_i1resid,
+    spurtransform,
 )
+from .types import (
+    Fits,
+    HalfLifeResult,
+    PipelineResult,
+    RegressionResult,
+    TestResult,
+    Tests,
+)
+from .utils.data import load_chetty_data, standardize
+
+spur = spur_fn
+
+
+class SPUR(ModuleType):
+    """Module type forwarding calls to `spur()`."""
+
+    def __call__(self, *args: Any, **kwargs: Any) -> PipelineResult:
+        return self.spur(*args, **kwargs)
+
+
+module = sys.modules[__name__]
+module.__class__ = SPUR
 
 __all__ = [
     "load_chetty_data",
     "standardize",
-    "haversine_distance",
-    "get_distance_matrix",
-    "nn_matrix",
-    "iso_matrix",
-    "demean_matrix",
-    "get_sigma_lbm",
-    "lbmgls_matrix",
-    "cluster_matrix",
-    "transform",
-    "spurtransform",
-    "get_transformation_stats",
     "HalfLifeResult",
-    "spatial_persistence",
-    "spurhalflife",
-    "SpurTestResult",
-    "get_distmat_normalized",
-    "get_R",
-    "get_sigma_dm",
-    "lvech",
-    "getcbar",
-    "_cholesky_upper",
-    "getpow_qf",
-    "get_ha_parm_I1",
-    "get_ha_parm_I0",
-    "spatial_i1_test",
-    "spatial_i0_test",
-    "get_sigma_residual",
-    "get_ha_parm_I1_residual",
-    "spatial_i1_test_residual",
-    "spatial_i0_test_residual",
+    "TestResult",
+    "RegressionResult",
+    "Tests",
+    "Fits",
+    "PipelineResult",
+    "spurtest_i1",
+    "spurtest_i0",
+    "spurtest_i1resid",
+    "spurtest_i0resid",
     "spurtest",
+    "spurtransform",
+    "spurhalflife",
+    "spur",
 ]

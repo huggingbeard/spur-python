@@ -10,9 +10,9 @@ if __name__ == "__main__":
     df = standardize(df, ["am"])
 
     # i1 test
-    i1res = spurtest(df, "i1", "am", ["lat", "lon"])
+    i1res = spurtest("am", df, test="i1", lon="lon", lat="lat")
     print(i1res.summary())
 
     # i0 test
-    i0res = spurtest(df, "i0", "am", ["lat", "lon"])
+    i0res = spurtest("am", df, test="i0", lon="lon", lat="lat")
     print(i0res.summary())

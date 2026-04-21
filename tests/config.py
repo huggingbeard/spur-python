@@ -1,0 +1,4 @@
+ATOL = 1e-8
+RTOL = 0.0
+PARITY_ATOL = 1e-5
+PARITY_RTOL = 0.0

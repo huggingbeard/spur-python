@@ -10,5 +10,5 @@ if __name__ == "__main__":
     df = standardize(df, ["am"])
 
     # halflife estimate/test
-    hl = spurhalflife(df, "am", ["lat", "lon"], nrep=1000)
+    hl = spurhalflife("am", df, lon="lon", lat="lat", nrep=1000)
     print(hl.summary())

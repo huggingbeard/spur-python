@@ -1,6 +1,6 @@
 [project]
 name = "spur-python"
-version = "0.1.0"
+version = "0.1.0b1"
 description = "Spatial error dependence diagnostics and corrections based on Müller-Watson, Econometrica 2024"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,6 +23,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
+    "scpc-python>=0.1.0b3",
     "matplotlib>=3.10.8", # DG this should not be a main dependency imho
     "numpy>=2.4.4",
     "pandas>=3.0.2",
